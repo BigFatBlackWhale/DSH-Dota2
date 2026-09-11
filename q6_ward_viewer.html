@@ -212,7 +212,18 @@ function render(){
   if(!AGG) aggregate();
   ctx.clearRect(0,0,CSX,CSX);
   ctx.fillStyle='#0d1117'; ctx.fillRect(0,0,CSX,CSX);
-  if(bgReady && bgOp>0){ ctx.globalAlpha=bgOp/100; ctx.drawImage(bgimg,0,0,CSX,CSX); ctx.globalAlpha=1; }
+  if(bgReady && bgOp>0){
+    ctx.globalAlpha=bgOp/100;
+    // ★ 底图必须跟随视野: 放大/平移时按【源裁剪】把视野对应的底图区域铺满画布。
+    //   之前一直写 drawImage(bgimg,0,0,CSX,CSX) —— 底图永远是整张全图, 放大后跟热力块/眼点对不上(Q5B 用的是源裁剪)。
+    if(viewRect){
+      const p0=w2p(viewRect[0], viewRect[3]), p1=w2p(viewRect[1], viewRect[2]);
+      ctx.drawImage(bgimg, p0[0], p0[1], p1[0]-p0[0], p1[1]-p0[1], 0, 0, CSX, CSX);
+    } else {
+      ctx.drawImage(bgimg, 0, 0, CSX, CSX);
+    }
+    ctx.globalAlpha=1;
+  }
   const vmax = (capValue!=null?capValue:CAP) || 1;
   cellsFor().forEach(function(c){
     const v=valOf(c), t=Math.max(0,Math.min(1, v/vmax));
