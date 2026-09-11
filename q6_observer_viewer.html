@@ -82,6 +82,16 @@ function px2world(px,py){
   const r=viewRect, fx=px/CSX, fy=1-py/CSX;
   return [r[0]+fx*(r[1]-r[0]), r[2]+fy*(r[3]-r[2])];
 }
+// 视野钳制: 最小 = 半格(避免无限放大), 最大 = 全图; 并保证中心不出图(拖拽也不会飘走)
+function clampView(v){
+  const MAXW=2*HALF, MINW=CS*0.5;
+  let [x0,x1,y0,y1]=v; let w=Math.abs(x1-x0), h=Math.abs(y1-y0);
+  w=Math.max(MINW, Math.min(w, MAXW)); h=Math.max(MINW, Math.min(h, MAXW));
+  let cx=(x0+x1)/2, cy=(y0+y1)/2;
+  cx=Math.max(-HALF+w/2, Math.min(HALF-w/2, cx));
+  cy=Math.max(-HALF+h/2, Math.min(HALF-h/2, cy));
+  return [cx-w/2, cx+w/2, cy-h/2, cy+h/2];
+}
 
 // ---- 聚合(前端, 只在筛选变化时重算) ----
 function aggregate(){
@@ -179,7 +189,7 @@ cv.addEventListener('mousemove', function(e){
     if(Math.abs(dx)+Math.abs(dy)>1) dragMoved=true;
     const a=px2world(0,0), b=px2world(mx,my);
     const wdx=a[0]-b[0], wdy=a[1]-b[1];
-    if(viewRect){ viewRect=[viewRect[0]+wdx, viewRect[1]+wdx, viewRect[2]+wdy, viewRect[3]+wdy]; render(); }
+    if(viewRect){ viewRect=clampView([viewRect[0]+wdx, viewRect[1]+wdx, viewRect[2]+wdy, viewRect[3]+wdy]); render(); }
     lastX=e.clientX; lastY=e.clientY;
     return;
   }
@@ -198,12 +208,13 @@ cv.addEventListener('wheel', function(e){
   const w0=px2world(mx,my);
   const f = e.deltaY<0 ? 0.7 : 1/0.7;
   const nw=(cur[1]-cur[0])*f;
-  if(nw < CS*1.5){ return; }                        // 不再放大
-  if(nw > 2*HALF*1.02){ viewRect=null; selKey=null; render(); return; }
+  // 缩到全图之外 -> 复位; 否则钳制(最小半格)。★ 不能用"return 拦截": 单格视野(172)乘 1.43 仍 < 258,
+  //   旧写法会把缩小动作整个挡掉, 用户卡在单格视图里出不来(实测抓到)。
+  if(nw >= 2*HALF*1.02){ viewRect=null; selKey=null; render(); return; }
   const cx0=(cur[0]+cur[1])/2, cy0=(cur[2]+cur[3])/2;
   const fx=(w0[0]-cur[0])/(cur[1]-cur[0]), fy=(w0[1]-cur[2])/(cur[3]-cur[2]);
   const nx0=w0[0]-fx*nw, ny0=w0[1]-fy*nw;
-  viewRect=[nx0, nx0+nw, ny0, ny0+nw];
+  viewRect=clampView([nx0, nx0+nw, ny0, ny0+nw]);
   render();
 }, {passive:false});
 cv.addEventListener('click', function(e){
@@ -250,7 +261,7 @@ function renderDrill(k){
     const org=ORGS[MORG[r[IX.mi]][r[IX.team]===2?0:1]]||'?';
     tr.innerHTML='<td class="c">'+MIDS[r[IX.mi]]+'</td><td>'+org+'</td><td class="c">'+(r[IX.team]===2?'天辉':'夜魇')+'</td>'+
       '<td>'+mmss(r[IX.place])+'</td><td>'+mmss(r[IX.destroy])+'</td><td>'+r[IX.surv]+'s</td>'+
-      '<td class="c" style="color:'+(r[IX.dew]?'#f85149':'#8b949e')+'">'+(r[IX.dew]?'是被反':'到期')+'</td>'+
+      '<td class="c" style="color:'+(r[IX.dew]?'#f85149':'#8b949e')+'">'+(r[IX.dew]?'是被反':(r[IX.surv] < 359.5 ? '存活到结束' : '到期'))+'</td>'+
       '<td class="c" style="color:'+(r[IX.tricky]?'#ffa657':'#8b949e')+'">'+(r[IX.tricky]?'刁钻':'—')+'</td>'+
       '<td>'+r[IX.n_es]+' 支</td><td>'+(r[IX.d_min]>=0?r[IX.d_min]+'':'—')+'</td><td>'+(r[IX.ovl]>0?r[IX.ovl]+'s':'—')+'</td>';
     tb.appendChild(tr);
