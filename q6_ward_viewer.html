@@ -21,7 +21,7 @@ table#drill{width:100%;border-collapse:collapse;font-size:12px;margin-top:8px}
 #tip{position:absolute;background:#161b22ee;border:1px solid #30363d;border-radius:6px;padding:6px 9px;font-size:12px;pointer-events:none;display:none;z-index:9;white-space:nowrap}
 .pgn{font-size:12px;color:#8b949e;margin:6px 0}
 </style></head><body>
-<h1>Q6 · 全战队假眼(Observer)眼位热力 + 刁钻眼位 <span id="build" style="font-size:12px;font-weight:400;color:#8b949e;margin-left:10px">构建 2026-09-11 16:15 · 功能版本 <b>v13</b></span></h1>
+<h1>Q6 · 全战队假眼(Observer)眼位热力 + 刁钻眼位 <span id="build" style="font-size:12px;font-weight:400;color:#8b949e;margin-left:10px">构建 2026-09-11 16:21 · 功能版本 <b>v13</b></span></h1>
 <div class="legend">
 <b>统计单元</b> = 假眼位置(格 <code>172</code> 单位, 与 Q5B 同网格); <b>维度</b> = 战队 × 时间窗(0-7 / 7-20 / 20+ / 全部)。<br>
 <b>刁钻眼位</b>(owner 终版) = 假眼 <code>存活 &gt; 1 分钟</code> 且 <code>存活期间 1200 单位内存在敌方真眼</code>(真视 1050 + 缓冲 1200)
@@ -53,7 +53,7 @@ table#drill{width:100%;border-collapse:collapse;font-size:12px;margin-top:8px}
   <canvas id="cv" width="1024" height="1024"></canvas>
   <div id="tip"></div>
   <div id="dotinfo" style="display:none;font-size:12px;line-height:1.7;background:#161b22;border:1px solid #30363d;border-radius:8px;padding:8px 10px;margin-top:6px;max-width:1024px"></div>
-  <div class="pgn">滚轮缩放 · <b>按住鼠标中键拖动平移</b>(左键拖动不平移) · <b>点格</b>=以该格为中心放大 <b>4 倍</b>(连点同一个格会一直放大 4 倍, 最小到半格 86 单位; <b>复位视野</b> 按钮或滚轮缩小回全图) ·
+  <div class="pgn">滚轮缩放 · <b>拖动平移:按住鼠标中键(或右键 / Shift+左键)</b> · <b>点格</b>=切到该格并放大 <b>4 倍</b>(点<b>已经选中的格</b>不再继续放大; 继续放大用滚轮, 回全图用 <b>复位视野</b>) ·
    <b>放大到 8 格以内</b>会画出该格的眼点图标, <b>点眼点</b>(或点右侧明细表任一行)锁定该眼 · hover 看格子数值</div>
  </div>
  <div class="right">
@@ -285,26 +285,36 @@ function render(){
 }
 
 // ---- 交互 ----
-// 平移 = **按住鼠标中键**拖动(owner 要求);左键只用来点格/点眼, 不再拖动
-// ⚠ 早先有个 dragMoved 守卫"拖动后吞掉下一次点击" —— 中键拖动不会产生 click(浏览器只发 auxclick),
-//   那个标记会一直留着把**下一次左键点击**吃掉, 所以去掉(左键本来也不再平移, 不需要它)。
-let dragging=false, lastX=0, lastY=0;
+// 平移 = **按住鼠标中键拖动**(owner 要求)。但很多鼠标/触控板没有中键(实测 owner 那边按不出来),
+//   所以同时支持 **右键拖动** 与 **Shift + 左键拖动**; 左键单击(无修饰键)只用来点格/点眼。
+let dragging=false, lastX=0, lastY=0, shiftDown=false;
+function dragButton(e){ return e.button===1 || e.button===2 || (e.button===0 && (e.shiftKey || shiftDown)); }
+cv.addEventListener('contextmenu', function(e){ if(e.preventDefault) e.preventDefault(); });   // 右键拿来拖动, 不弹菜单
+window.addEventListener('keydown', function(e){ if(e.key==='Shift') shiftDown=true; });
+window.addEventListener('keyup', function(e){ if(e.key==='Shift') shiftDown=false; });
 cv.addEventListener('mousedown', function(e){
-  if(e.button!==1){ return; }                    // 只有中键(button===1)开始拖动
+  if(!dragButton(e)){ return; }                  // 只有 中键 / 右键 / Shift+左键 开始拖动
   dragging=true; lastX=e.clientX; lastY=e.clientY;
   cv.style.cursor='grabbing';
   if(e.preventDefault) e.preventDefault();       // 压掉浏览器中键自动滚动
 });
 window.addEventListener('mouseup', function(){ dragging=false; cv.style.cursor='grab'; });
-// 中键还会触发 auxclick/click: 屏蔽掉, 免得被当成"点格"
-cv.addEventListener('auxclick', function(e){ if(e.button===1 && e.preventDefault) e.preventDefault(); });
+// 中键/右键还会触发 auxclick/click: 屏蔽掉, 免得被当成"点格"
+cv.addEventListener('auxclick', function(e){ if((e.button===1||e.button===2) && e.preventDefault) e.preventDefault(); });
 cv.addEventListener('mousemove', function(e){
   const rect=cv.getBoundingClientRect(), sx=CSX/rect.width;
   const mx=(e.clientX-rect.left)*sx, my=(e.clientY-rect.top)*sx;   // px 在 if 外, 避免作用域坑
   if(dragging){
     const a=px2world(0,0), b=px2world(mx,my);
     const wdx=a[0]-b[0], wdy=a[1]-b[1];
-    if(viewRect){ viewRect=clampView([viewRect[0]+wdx, viewRect[1]+wdx, viewRect[2]+wdy, viewRect[3]+wdy]); render(); }
+    // 全图时没有可平移的余地: 先按当前指针位置放大到 4 格视野, 再平移(否则"全图下右键拖动"会毫无反应)
+    if(!viewRect){
+      const nw=CS*4, ccx=b[0], ccy=b[1];
+      viewRect=clampView([ccx-nw/2, ccx+nw/2, ccy-nw/2, ccy+nw/2]);
+      lastX=e.clientX; lastY=e.clientY; render(); return;
+    } else {
+      viewRect=clampView([viewRect[0]+wdx, viewRect[1]+wdx, viewRect[2]+wdy, viewRect[3]+wdy]); render();
+    }
     lastX=e.clientX; lastY=e.clientY;
     return;
   }
@@ -348,9 +358,11 @@ cv.addEventListener('click', function(e){
   }
   const w=px2world(mx,my);
   const cx=Math.floor((w[0]+HALF)/CS), cy=Math.floor((w[1]+HALF)/CS), k=cx+','+cy;
+  // 点【已经是当前选中的格】-> 不再继续放大(owner 反馈: 连点同一个格会一直缩进去, 收不住)
+  //   想继续放大: 滚轮, 或者点相邻的格(点新格 = 从当前视野放大 4 倍)。回全图: 复位视野 / 滚轮缩小。
+  if(selKey===k){ renderDrill(k); render(); return; }
   selKey=k;
-  // 点格 = 以该格为中心**在当前视野基础上放大 4 倍**(每点一次再放大 4 倍, 包括反复点同一个格;
-  //   要回到全图请用"复位视野"按钮或滚轮缩小)。owner 反馈: 早先"点同一格复位"会让人以为"每次点都只是全图/4"。
+  // 点【别的格】= 以该格为中心, 在当前视野基础上放大 4 倍
   const curW = viewRect ? Math.abs(viewRect[1]-viewRect[0]) : 2*HALF;
   const nw = Math.max(MINW_CLICK, Math.min(2*HALF, curW/CLICK_ZOOM));
   const ccx=(cx+0.5)*CS-HALF, ccy=(cy+0.5)*CS-HALF;         // 格中心(世界坐标)
