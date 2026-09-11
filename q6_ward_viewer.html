@@ -43,13 +43,14 @@ table#drill{width:100%;border-collapse:collapse;font-size:12px;margin-top:8px}
   <div style="margin:6px 0"><button class="btn wbtn" data-w="0" onclick="setWin(0)">0-7分</button><button class="btn wbtn" data-w="1" onclick="setWin(1)">7-20分</button><button class="btn wbtn" data-w="2" onclick="setWin(2)">20分后</button><button class="btn wbtn" data-w="-1" onclick="setWin(-1)">全部</button>
    <label class="toggle" style="margin-left:10px"><input type="checkbox" id="tk" onchange="setTricky()"> <b style="color:#ffa657">只看刁钻</b></label>
    <label class="toggle" style="margin-left:10px"><input type="checkbox" id="cx" onchange="setCens()"> <b>剔除截断眼</b>(存活被比赛结束截断)</label></div>
-  <div style="margin:6px 0"><span class="lbl">存活</span><button class="btn vbtn" data-m="avg_surv" onclick="setMetric('avg_surv')">平均存活</button><span class="sep"></span><span class="lbl">数量</span><button class="btn vbtn" data-m="n_obs" onclick="setMetric('n_obs')">假眼出现次数</button><span class="sep"></span><span class="lbl">被反</span><button class="btn vbtn" data-m="dew_rate" onclick="setMetric('dew_rate')">被反率</button><span class="sep"></span><span class="lbl">刁钻</span><button class="btn vbtn" data-m="tricky_rate" onclick="setMetric('tricky_rate')">刁钻率</button><button class="btn vbtn" data-m="n_tricky" onclick="setMetric('n_tricky')">刁钻数</button></div>
+  <div style="margin:6px 0"><span class="lbl">存活</span><button class="btn vbtn" data-m="avg_surv" onclick="setMetric('avg_surv')">平均存活</button><span class="sep"></span><span class="lbl">数量</span><button class="btn vbtn" data-m="n_obs" onclick="setMetric('n_obs')">假眼出现次数</button><button class="btn vbtn" data-m="n_match" onclick="setMetric('n_match')">出场场次</button><span class="sep"></span><span class="lbl">被反</span><button class="btn vbtn" data-m="dew_rate" onclick="setMetric('dew_rate')">被反率</button><span class="sep"></span><span class="lbl">刁钻</span><button class="btn vbtn" data-m="tricky_rate" onclick="setMetric('tricky_rate')">刁钻率</button><button class="btn vbtn" data-m="n_tricky" onclick="setMetric('n_tricky')">刁钻数</button></div>
   <div class="sliderbar"><label>底图透明度 <input id="mop" type="range" min="0" max="100" value="35" oninput="setBg()"></label> <span id="moppct">35%</span></div>
   <div class="sliderbar"><label><input id="sl" type="range" min="1" max="400" step="1" value="0" oninput="setCap()"></label> <span>值热力上限 <b id="cap">自动</b></span> <button class="btn" onclick="resetCap()">重置自动</button><br><span id="curdesc"></span></div>
   <div class="sliderbar"><label><input id="ns" type="range" min="0" max="60" value="0" oninput="setN()"> 位置出现次数(假眼数)下限</label> <span id="nsv">0</span></div>
   <canvas id="cv" width="1024" height="1024"></canvas>
   <div id="tip"></div>
-  <div class="pgn">滚轮缩放 · 拖拽平移 · 点格放大并钻取(再点同一格复位) · hover 看格子数值</div>
+  <div id="dotinfo" style="display:none;font-size:12px;line-height:1.7;background:#161b22;border:1px solid #30363d;border-radius:8px;padding:8px 10px;margin-top:6px;max-width:1024px"></div>
+  <div class="pgn">滚轮缩放 · 拖拽平移 · <b>点格放大并钻取</b>(再点同一格复位) · <b>选中格子后点格内眼点</b>(或点明细表任一行)锁定该眼, 显示 match_id/坐标/双方队名 · hover 看格子数值</div>
  </div>
  <div class="right">
   <h3 style="margin:8px 0">假眼明细（点地图格子）</h3>
@@ -78,7 +79,7 @@ const obsIcon=new Image(); obsIcon.src=OBSICON;
 // ---- 状态 ----
 let orgSet=[];                  // 已勾选的战队索引(空数组 = 全部战队)
 let wsel=0, trickyOnly=false, censOut=false, metric='avg_surv', minN=0, capValue=null, bgOp=35;
-let viewRect=null, selKey=null, locked=null, hoverKey=null;
+let viewRect=null, selKey=null, locked=null, hoverKey=null, DOTS=[];
 let AGG=null, CAP=10;
 const SEQ=[[0,[54,84,120]],[0.25,[39,128,163]],[0.5,[86,181,200]],[0.7,[161,216,86]],[0.88,[255,209,102]],[1,[214,30,30]]];
 function interp(st,t){ if(t<=st[0][0])return st[0][1]; if(t>=st[st.length-1][0])return st[st.length-1][1];
@@ -122,8 +123,9 @@ function aggregate(){
     if(censOut && r[IX.cens]) continue;
     list.push(i);
     const cx=Math.floor((r[IX.x]+HALF)/CS), cy=Math.floor((r[IX.y]+HALF)/CS), k=cx+','+cy;
-    let c=cells[k]; if(!c){ c=cells[k]={n:0,ss:0,sd:0,st:0,sc:0,cx:cx,cy:cy}; }
+    let c=cells[k]; if(!c){ c=cells[k]={n:0,ss:0,sd:0,st:0,sc:0,cx:cx,cy:cy,mis:{}}; }
     c.n++; c.ss+=r[IX.surv]; c.sd+=r[IX.dew]; c.st+=r[IX.tricky]; c.sc+=r[IX.cens];
+    c.mis[r[IX.mi]]=1;                              // 出场场次(去重)
   }
   AGG={cells:cells,list:list};
   document.getElementById('orgstat').textContent =
@@ -132,6 +134,7 @@ function aggregate(){
 function valOf(c){
   if(metric==='avg_surv') return c.ss/c.n;
   if(metric==='n_obs') return c.n;
+  if(metric==='n_match') return Object.keys(c.mis).length;      // 出场场次(该格·该筛选下涉及多少场比赛)
   if(metric==='dew_rate') return 100*c.sd/c.n;
   if(metric==='tricky_rate') return 100*c.st/c.n;
   if(metric==='n_tricky') return c.st;
@@ -160,20 +163,47 @@ function drawDots(){
     const r=I[AGG.list[n]];
     const cx=Math.floor((r[IX.x]+HALF)/CS), cy=Math.floor((r[IX.y]+HALF)/CS);
     const k=cx+','+cy;
-    if(selKey && k===selKey) want.push(r);
+    if(selKey && k===selKey) want.push(AGG.list[n]);
     else if(viewRect){
-      if(r[IX.x]>=viewRect[0]&&r[IX.x]<=viewRect[1]&&r[IX.y]>=viewRect[2]&&r[IX.y]<=viewRect[3]) want.push(r);
+      if(r[IX.x]>=viewRect[0]&&r[IX.x]<=viewRect[1]&&r[IX.y]>=viewRect[2]&&r[IX.y]<=viewRect[3]) want.push(AGG.list[n]);
     }
   }
   const cap=4000;
+  DOTS=[];
   for(let i=0;i<Math.min(want.length,cap);i++){
-    const r=want[i], p=w2pView(r[IX.x],r[IX.y]);
+    const idx=want[i], r=I[idx], p=w2pView(r[IX.x],r[IX.y]);
     const isT=r[IX.tricky]===1;
+    DOTS.push([p[0],p[1],idx,Math.floor((r[IX.x]+HALF)/CS)+','+Math.floor((r[IX.y]+HALF)/CS)]);  // [x,y,实例号,格键]
     ctx.beginPath(); ctx.arc(p[0],p[1], isT?4.5:3.5, 0, 6.2832);
     ctx.fillStyle = isT ? '#ffa657' : '#79c0ff';
     if(r[IX.dew]===1){ ctx.fill(); ctx.lineWidth=1.6; ctx.strokeStyle='#f85149'; ctx.stroke(); }
     else { ctx.fill(); }
+    if(locked===idx){                              // 锁定的眼加白圈
+      ctx.beginPath(); ctx.arc(p[0],p[1],9,0,6.2832);
+      ctx.lineWidth=2.2; ctx.strokeStyle='#ffffff'; ctx.stroke();
+    }
   }
+}
+// 点眼锁定: 显示 match_id + 坐标 + 双方队名 + 该眼全部字段(任务书 §6)
+function eyeInfo(idx){
+  const r=I[idx], mo=MORG[r[IX.mi]]||[-1,-1];
+  const own=ORGS[mo[r[IX.team]===2?0:1]]||'?', foe=ORGS[mo[r[IX.team]===2?1:0]]||'?';
+  return '<b>'+MIDS[r[IX.mi]]+'</b> · '+own+'('+(r[IX.team]===2?'天辉':'夜魇')+') vs '+foe+
+    ' · 坐标 <b>('+r[IX.x]+', '+r[IX.y]+')</b> · 格('+Math.floor((r[IX.x]+HALF)/CS)+','+Math.floor((r[IX.y]+HALF)/CS)+')'+
+    ' · 窗 '+WIN[r[IX.win]]+'<br>'+
+    '放置 <b>'+mmss(r[IX.place])+'</b> → 销毁 <b>'+mmss(r[IX.destroy])+'</b> · 存活 <b>'+r[IX.surv]+'s</b>'+
+    ' · '+(r[IX.dew]?(r[IX.cens]?'被反·记录在赛后':'是被反'):(r[IX.cens]?'存活到比赛结束(截断)':'到期'))+
+    ' · 刁钻 <b>'+(r[IX.tricky]?'是':'否')+'</b>'+
+    ' · 期间敌方真眼(共存≥'+TR.min_overlap+'s) '+r[IX.n_es]+' 支'+
+    (r[IX.d_min]>=0?(' · 最近 '+r[IX.d_min]+' 单位'):'')+(r[IX.ovl]>0?(' · 最长共存 '+r[IX.ovl]+'s'):'');
+}
+function setLocked(idx){
+  locked = (locked===idx ? null : idx);
+  const el=document.getElementById('dotinfo');
+  if(locked==null){ el.innerHTML=''; el.style.display='none'; }
+  else { el.innerHTML='🔒 '+eyeInfo(locked)+'<br><span style="color:#8b949e">再点这支眼解锁; 点空格子仍然按格钻取。</span>';
+         el.style.display='block'; }
+  render();
 }
 function render(){
   if(!AGG) aggregate();
@@ -191,7 +221,7 @@ function render(){
     if(selKey===c.cx+','+c.cy){ ctx.lineWidth=2.5; ctx.strokeStyle='#ffffff'; ctx.strokeRect(p0[0],p0[1],(p1[0]-p0[0]),(p1[1]-p0[1])); }
   });
   drawDots();
-  const mname={avg_surv:'平均存活',n_obs:'假眼出现次数',dew_rate:'被反率',tricky_rate:'刁钻率',n_tricky:'刁钻数'}[metric];
+  const mname={avg_surv:'平均存活',n_obs:'假眼出现次数',n_match:'出场场次',dew_rate:'被反率',tricky_rate:'刁钻率',n_tricky:'刁钻数'}[metric];
   document.getElementById('curdesc').textContent =
     '战队:'+(orgSet.length?(orgSet.length+' 支已选'):'全部')+' · '+(wsel<0?'全部':WIN[wsel])+(trickyOnly?' · 只看刁钻':'')+' · '+mname+
     ' · 上限'+(capValue!=null?capValue.toFixed(1):('自动'+CAP.toFixed(1)))+' · 下限'+minN;
@@ -241,9 +271,20 @@ cv.addEventListener('click', function(e){
   if(dragMoved) return;
   const rect=cv.getBoundingClientRect(), sx=CSX/rect.width;
   const mx=(e.clientX-rect.left)*sx, my=(e.clientY-rect.top)*sx;
+  // 【点眼锁定】只在"已选中的格"内生效(半径 10px) —— 否则会把"点格钻取"这个主操作抢掉:
+  //   未选格时点哪儿都是选格; 选中某格后, 点该格里的眼点 = 锁定该眼; 点别的格 = 换格。
+  if(selKey){
+    let hit=null, hd=1e9;
+    for(let i=0;i<DOTS.length;i++){
+      if(DOTS[i][3]!==selKey) continue;             // 只认当前选中格里的眼点
+      const dd=Math.hypot(DOTS[i][0]-mx, DOTS[i][1]-my);
+      if(dd<=10 && dd<hd){ hit=DOTS[i][2]; hd=dd; }
+    }
+    if(hit!=null){ setLocked(hit); return; }
+  }
   const w=px2world(mx,my);
   const cx=Math.floor((w[0]+HALF)/CS), cy=Math.floor((w[1]+HALF)/CS), k=cx+','+cy;
-  if(selKey===k){ selKey=null; viewRect=null; renderDrill(null); render(); return; }
+  if(selKey===k){ selKey=null; viewRect=null; setLocked(null); renderDrill(null); render(); return; }
   selKey=k;
   viewRect=[(cx)*CS-HALF, (cx+1)*CS-HALF, (cy)*CS-HALF, (cy+1)*CS-HALF];
   renderDrill(k); render();
@@ -251,7 +292,7 @@ cv.addEventListener('click', function(e){
 function showTip(e,k,cx,cy){
   const c=AGG.cells[k]; const tip=document.getElementById('tip');
   if(!c){ tip.style.display='none'; return; }
-  tip.innerHTML='格('+cx+','+cy+') 假眼 <b>'+c.n+'</b> 支 · 平均存活 <b>'+(c.ss/c.n).toFixed(1)+'s</b>'+
+  tip.innerHTML='格('+cx+','+cy+') 假眼 <b>'+c.n+'</b> 支 · 出场 <b>'+Object.keys(c.mis).length+'</b> 场 · 平均存活 <b>'+(c.ss/c.n).toFixed(1)+'s</b>'+
     ' · 被反 <b>'+c.sd+'</b> · 刁钻 <b>'+c.st+'</b> ('+(100*c.st/c.n).toFixed(0)+'%)'+
     (c.sc?' · 其中截断 <b>'+c.sc+'</b>':'');
   tip.style.display='block'; moveTip(e);
@@ -266,19 +307,23 @@ function renderDrill(k){
   const sum=document.getElementById('sum');
   if(!k){ sum.textContent='点一个格子看该格假眼明细(match_id / 时刻 / 存活 / 被反 / 刁钻 / 期间敌方真眼)。'; return; }
   const cx=parseInt(k.split(',')[0],10), cy=parseInt(k.split(',')[1],10);
-  const rows=[];
+  const rows=[];                       // 存【实例号】而不是行引用, 这样每行都能点开锁定
   if(AGG) for(let n=0;n<AGG.list.length;n++){
-    const r=I[AGG.list[n]];
-    if(Math.floor((r[IX.x]+HALF)/CS)===cx && Math.floor((r[IX.y]+HALF)/CS)===cy) rows.push(r);
+    const idx=AGG.list[n], r=I[idx];
+    if(Math.floor((r[IX.x]+HALF)/CS)===cx && Math.floor((r[IX.y]+HALF)/CS)===cy) rows.push(idx);
   }
-  rows.sort(function(a,b){ return a[IX.place]-b[IX.place]; });
-  let nT=0,nD=0,nC=0; rows.forEach(function(r){ if(r[IX.tricky])nT++; if(r[IX.dew])nD++; if(r[IX.cens])nC++; });
+  rows.sort(function(a,b){ return I[a][IX.place]-I[b][IX.place]; });
+  let nT=0,nD=0,nC=0; const mis={};
+  rows.forEach(function(idx){ const r=I[idx]; if(r[IX.tricky])nT++; if(r[IX.dew])nD++; if(r[IX.cens])nC++; mis[r[IX.mi]]=1; });
+  const nMatch=Object.keys(mis).length;
+  let survSum=0; rows.forEach(function(idx){ survSum+=I[idx][IX.surv]; });
   sum.innerHTML='格 <b>('+cx+','+cy+')</b> · '+(wsel<0?'全部':WIN[wsel])+(trickyOnly?' · 只看刁钻':'')+(censOut?' · 已剔除截断眼':'')+' · 战队 '+(orgSet.length?(orgSet.length+' 支已选'):'全部')+
-    ' · 假眼 <b>'+rows.length+'</b> 支 · 刁钻 <b>'+nT+'</b> · 被反 <b>'+nD+'</b>'+(nC?' · 截断 <b>'+nC+'</b>':'')+
-    (rows.length?(' · 平均存活 <b>'+(rows.reduce(function(s,r){return s+r[IX.surv];},0)/rows.length).toFixed(1)+'s</b>'):'');
+    ' · 假眼 <b>'+rows.length+'</b> 支 · 出场 <b>'+nMatch+'</b> 场 · 刁钻 <b>'+nT+'</b> · 被反 <b>'+nD+'</b>'+(nC?' · 截断 <b>'+nC+'</b>':'')+
+    (rows.length?(' · 平均存活 <b>'+(survSum/rows.length).toFixed(1)+'s</b>'):'')+
+    '<br><span style="color:#8b949e">点下面任一行 = 在地图上锁定该眼(画白圈 + 显示 match_id/坐标/双方队名)</span>';
   if(!rows.length){ tb.innerHTML='<tr><td colspan="11" class="c">该格在当前筛选下没有假眼</td></tr>'; return; }
-  rows.forEach(function(r){
-    const tr=document.createElement('tr');
+  rows.forEach(function(idx){
+    const tr=document.createElement('tr'), r=I[idx];
     const org=ORGS[MORG[r[IX.mi]][r[IX.team]===2?0:1]]||'?';
     tr.innerHTML='<td class="c">'+MIDS[r[IX.mi]]+'</td><td>'+org+'</td><td class="c">'+(r[IX.team]===2?'天辉':'夜魇')+'</td>'+
       '<td>'+mmss(r[IX.place])+'</td><td>'+mmss(r[IX.destroy])+'</td><td>'+r[IX.surv]+'s</td>'+
@@ -286,6 +331,8 @@ function renderDrill(k){
         (r[IX.dew]?(r[IX.cens]?'被反·记录在赛后':'是被反'):(r[IX.cens]?'存活到比赛结束(截断)':'到期'))+'</td>'+
       '<td class="c" style="color:'+(r[IX.tricky]?'#ffa657':'#8b949e')+'">'+(r[IX.tricky]?'刁钻':'—')+'</td>'+
       '<td>'+r[IX.n_es]+' 支</td><td>'+(r[IX.d_min]>=0?r[IX.d_min]+'':'—')+'</td><td>'+(r[IX.ovl]>0?r[IX.ovl]+'s':'—')+'</td>';
+    tr.style.cursor='pointer';
+    tr.onclick=(function(i){ return function(){ setLocked(i); }; })(idx);
     tb.appendChild(tr);
   });
 }
