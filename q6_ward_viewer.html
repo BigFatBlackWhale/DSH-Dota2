@@ -3,9 +3,11 @@
 body{font-family:-apple-system,Segoe UI,Roboto,"Microsoft YaHei",sans-serif;background:#0d1117;color:#e6edf3;margin:20px}
 h1{font-size:20px;margin:0 0 8px}.legend{background:#161b22;border:1px solid #30363d;border-radius:8px;padding:12px 16px;margin:10px 0;font-size:13px;line-height:1.75}
 .legend b{color:#79c0ff}.legend code{background:#0d1117;padding:1px 5px;border-radius:4px;color:#ffa657}
-.wrap{display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap}
-.left{position:relative}.right{flex:1;min-width:420px;max-width:760px}
-canvas{border:1px solid #30363d;border-radius:8px;cursor:grab;display:block;max-width:100%}
+.wrap{display:flex;gap:12px;align-items:flex-start;flex-wrap:nowrap}
+/* 布局: 地图左、明细表右 —— 窗口不够宽时**让地图按比例缩小**, 而不是把明细表挤到下面去 */
+.left{flex:1 1 auto;min-width:260px;position:relative}
+.right{flex:0 0 520px;min-width:300px}
+canvas{border:1px solid #30363d;border-radius:8px;cursor:grab;display:block;width:100%;height:auto;max-width:100%}
 .btn{background:#21262d;border:1px solid #30363d;color:#c9d1d9;border-radius:6px;padding:4px 9px;margin:2px;cursor:pointer;font-size:12px}
 .btn.on{background:#1f6feb;border-color:#1f6feb;color:#fff}
 select{background:#21262d;border:1px solid #30363d;color:#c9d1d9;border-radius:6px;padding:4px 8px;font-size:12px;max-width:260px}
@@ -21,7 +23,7 @@ table#drill{width:100%;border-collapse:collapse;font-size:12px;margin-top:8px}
 #tip{position:absolute;background:#161b22ee;border:1px solid #30363d;border-radius:6px;padding:6px 9px;font-size:12px;pointer-events:none;display:none;z-index:9;white-space:nowrap}
 .pgn{font-size:12px;color:#8b949e;margin:6px 0}
 </style></head><body>
-<h1>Q6 · 全战队假眼(Observer)眼位热力 + 刁钻眼位 <span id="build" style="font-size:12px;font-weight:400;color:#8b949e;margin-left:10px">构建 2026-09-11 16:36 · 功能版本 <b>v15</b></span></h1>
+<h1>Q6 · 全战队假眼(Observer)眼位热力 + 刁钻眼位 <span id="build" style="font-size:12px;font-weight:400;color:#8b949e;margin-left:10px">构建 2026-09-11 16:54 · 功能版本 <b>v16</b></span></h1>
 <div class="legend">
 <b>统计单元</b> = 假眼位置(格 <code>172</code> 单位, 与 Q5B 同网格); <b>维度</b> = 战队 × 时间窗(0-7 / 7-20 / 20+ / 全部)。<br>
 <b>刁钻眼位</b>(owner 终版) = 假眼 <code>存活 &gt; 1 分钟</code> 且 <code>存活期间 1200 单位内存在敌方真眼</code>(真视 1050 + 缓冲 1200)
@@ -60,7 +62,7 @@ table#drill{width:100%;border-collapse:collapse;font-size:12px;margin-top:8px}
   <h3 style="margin:8px 0">假眼明细（点地图格子）</h3>
   <div id="sum" class="pgn"></div>
   <div id="gridwrap"><table id="drill"><thead><tr>
-   <th class="c">match_id</th><th>战队</th><th class="c">阵营</th><th>放置</th><th>销毁</th><th>存活</th>
+   <th class="c">match_id</th><th class="c">格</th><th>战队</th><th class="c">阵营</th><th>放置</th><th>销毁</th><th>存活</th>
    <th class="c">被反 / 存活状态</th><th class="c">刁钻?</th><th>期间敌方真眼<br><span style="font-weight:400;color:#8b949e">达标/任意</span></th><th>最近距离<br><span style="font-weight:400;color:#8b949e">达标/任意</span></th><th>最长共存<br><span style="font-weight:400;color:#8b949e">任意交集</span></th></tr></thead><tbody></tbody></table></div>
  </div>
 </div>
@@ -182,29 +184,37 @@ function drawDot(p,color){
 }
 function drawDots(){
   if(!AGG) return;
-  // ★ 图标只在"放大到 8 格以内"时才画: 更浅的缩放下一个格子只有几十 px, 16 支眼的 28px 图标会盖满整格,
-  //   既看不清、又会让"点格继续放大"全部被图标命中抢成"锁定该眼"(owner 实测反馈就是这个)。
-  //   浅层缩放时 DOTS 为空 -> 点击一律走"选中该格 + 放大 4 倍"。
+  // 什么时候画眼点图标:
+  //   · 有选中格 -> **在 4 倍档及其以内都画**(owner 要求: 4x 就要看到假眼的准确位置), 超过 4 倍档(滚轮拉远)不画
+  //   · 没选中格 -> 只有放大到 8 格以内才画(否则整个视野几千支会糊成一片)
   const vw = viewRect ? Math.abs(viewRect[1]-viewRect[0]) : null;
-  if(vw === null || vw > ICON_MIN_ZOOM_W){ DOTS=[]; dotTotal=0; dotCapped=false; return; }
-  // 画谁: 选中了格子 -> 只画该格(与右侧明细一致); 只用滚轮放大 -> 画视野内的
+  const showSel = !!selKey && vw !== null && vw <= CS*25*1.02;      // CS*25 = 全图/4 = 4 倍档
+  const showView = !selKey && vw !== null && vw <= ICON_MIN_ZOOM_W;
+  if(!showSel && !showView){ DOTS=[]; dotTotal=0; dotCapped=false; return; }
+  // 画谁: 选中了格子 -> 只画该格(与右侧明细的主格一致); 只用滚轮放大 -> 画视野内的
   const want=[];
   for(let n=0;n<AGG.list.length;n++){
     const idx=AGG.list[n], r=I[idx];
     const k=Math.floor((r[IX.x]+HALF)/CS)+','+Math.floor((r[IX.y]+HALF)/CS);
     if(selKey){ if(k===selKey) want.push(idx); }
-    else if(viewRect){
+    else {
       if(r[IX.x]>=viewRect[0]&&r[IX.x]<=viewRect[1]&&r[IX.y]>=viewRect[2]&&r[IX.y]<=viewRect[3]) want.push(idx);
     }
   }
-  // 大小: 与 Q5B 一致 —— 选中格用大图标(28px), 只看视野时用小图标(16px); 太密再缩一档免得糊成一团
+  // 图标大小按缩放档给(4 倍档格子只有 ~41px, 用 12px 才能看出"位置"; 放大后逐步变大到 28px)
   const iconReady = !!(obsIcon && obsIcon.complete && obsIcon.naturalWidth>0);
-  let s = selKey ? 28 : 16, cap = selKey ? 1500 : 600;
-  if(want.length > cap*1.5) s = Math.max(9, s*0.6);
+  let s = vw <= CS*2 ? 28 : (vw <= CS*8 ? 20 : 12);
+  let cap = selKey ? 1500 : 600;
+  if(want.length > cap*1.5) s = Math.max(8, s*0.7);
   const nDraw=Math.min(want.length, cap);
+  // 画序: 普通眼先画、刁钻/被反后画(重要的压在上面, 免得被盖住)
+  const order = want.slice(0, nDraw).sort(function(a,b){
+    const ra=I[a], rb=I[b];
+    return (ra[IX.tricky]+ra[IX.dew]*2) - (rb[IX.tricky]+rb[IX.dew]*2);
+  });
   DOTS=[]; dotTotal=want.length; dotCapped=(want.length>nDraw);
-  for(let i=0;i<nDraw;i++){
-    const idx=want[i], r=I[idx], p=w2pView(r[IX.x],r[IX.y]);
+  for(let i=0;i<order.length;i++){
+    const idx=order[i], r=I[idx], p=w2pView(r[IX.x],r[IX.y]);
     const isT=r[IX.tricky]===1, isD=r[IX.dew]===1;
     DOTS.push([p[0],p[1],idx,Math.floor((r[IX.x]+HALF)/CS)+','+Math.floor((r[IX.y]+HALF)/CS)]);  // [x,y,实例号,格键]
     if(iconReady){
@@ -215,7 +225,7 @@ function drawDots(){
     }
     // 颜色编码保留(图标本身是白色描边图): 橙=刁钻 / 蓝=普通 / 红=被反
     ctx.beginPath(); ctx.arc(p[0],p[1], s/2+1.5, 0, 6.2832);
-    ctx.lineWidth = 2.2;
+    ctx.lineWidth = Math.max(1.6, s*0.16);
     ctx.strokeStyle = isD ? '#f85149' : (isT ? '#ffa657' : '#79c0ff');
     ctx.stroke();
     if(locked===idx){                              // 锁定的眼加白圈
@@ -287,7 +297,7 @@ function render(){
 // ---- 交互 ----
 // 平移 = **按住鼠标中键拖动**(owner 要求)。但很多鼠标/触控板没有中键(实测 owner 那边按不出来),
 //   所以同时支持 **右键拖动** 与 **Shift + 左键拖动**; 左键单击(无修饰键)只用来点格/点眼。
-let dragging=false, lastX=0, lastY=0, shiftDown=false;
+let dragging=false, lastX=0, lastY=0, shiftDown=false, dragEndedAt=0;
 function dragButton(e){ return e.button===1 || e.button===2 || (e.button===0 && (e.shiftKey || shiftDown)); }
 cv.addEventListener('contextmenu', function(e){ if(e.preventDefault) e.preventDefault(); });   // 右键拿来拖动, 不弹菜单
 window.addEventListener('keydown', function(e){ if(e.key==='Shift') shiftDown=true; });
@@ -298,7 +308,7 @@ cv.addEventListener('mousedown', function(e){
   cv.style.cursor='grabbing';
   if(e.preventDefault) e.preventDefault();       // 压掉浏览器中键自动滚动
 });
-window.addEventListener('mouseup', function(){ dragging=false; cv.style.cursor='grab'; });
+window.addEventListener('mouseup', function(){ if(dragging){ dragEndedAt=Date.now(); } dragging=false; cv.style.cursor='grab'; });
 // 中键/右键还会触发 auxclick/click: 屏蔽掉, 免得被当成"点格"
 cv.addEventListener('auxclick', function(e){ if((e.button===1||e.button===2) && e.preventDefault) e.preventDefault(); });
 cv.addEventListener('mousemove', function(e){
@@ -327,6 +337,10 @@ cv.addEventListener('mousemove', function(e){
 cv.addEventListener('mouseleave', function(){ document.getElementById('tip').style.display='none'; hoverKey=null; });
 cv.addEventListener('wheel', function(e){
   e.preventDefault();
+  // ★ 拖动中 / 中键或右键**正被按住**时不吃滚轮: 很多鼠标按住滚轮(中键)时设备仍在发 wheel 事件,
+  //   那些事件会把拖动顺带变成缩放(owner 反馈"中键按下去还带着缩放, 拖动效果很差")。
+  //   用 e.buttons 位掩码判断(2=右键, 4=中键) —— 比"拖动结束后 N 毫秒内忽略"确定, 也不会有时间魔法。
+  if(dragging || ((e.buttons|0) & 6)){ return; }
   const rect=cv.getBoundingClientRect(), sx=CSX/rect.width;
   const mx=(e.clientX-rect.left)*sx, my=(e.clientY-rect.top)*sx;
   const cur = viewRect ? viewRect.slice() : [-HALF,HALF,-HALF,HALF];
@@ -394,27 +408,43 @@ function renderDrill(k){
   const sum=document.getElementById('sum');
   if(!k){ sum.textContent='点一个格子看该格假眼明细(match_id / 时刻 / 存活 / 被反 / 刁钻 / 期间敌方真眼)。'; return; }
   const cx=parseInt(k.split(',')[0],10), cy=parseInt(k.split(',')[1],10);
+  // 明细范围 = 中心格 + 周围 8 格(owner 要求"显示周围 8 格假眼位置的详细情况")
   const rows=[];                       // 存【实例号】而不是行引用, 这样每行都能点开锁定
+  const inBlock={}, blockKey=[];
+  for(let dx=-1;dx<=1;dx++) for(let dy=-1;dy<=1;dy++){ const kk=(cx+dx)+','+(cy+dy); inBlock[kk]=1; }
   if(AGG) for(let n=0;n<AGG.list.length;n++){
     const idx=AGG.list[n], r=I[idx];
-    if(Math.floor((r[IX.x]+HALF)/CS)===cx && Math.floor((r[IX.y]+HALF)/CS)===cy) rows.push(idx);
+    const kk=Math.floor((r[IX.x]+HALF)/CS)+','+Math.floor((r[IX.y]+HALF)/CS);
+    if(inBlock[kk]) rows.push(idx);
   }
-  rows.sort(function(a,b){ return I[a][IX.place]-I[b][IX.place]; });
-  let nT=0,nD=0,nC=0; const mis={};
-  rows.forEach(function(idx){ const r=I[idx]; if(r[IX.tricky])nT++; if(r[IX.dew])nD++; if(r[IX.cens])nC++; mis[r[IX.mi]]=1; });
+  // 排序: 中心格优先, 其余按"格到中心的距离"再按放置时刻
+  function dOf(idx){ const r=I[idx]; return Math.max(Math.abs(Math.floor((r[IX.x]+HALF)/CS)-cx), Math.abs(Math.floor((r[IX.y]+HALF)/CS)-cy)); }
+  rows.sort(function(a,b){ const da=dOf(a), db=dOf(b); if(da!==db) return da-db; return I[a][IX.place]-I[b][IX.place]; });
+  let nT=0,nD=0,nC=0, nCenter=0; const mis={};
+  rows.forEach(function(idx){ const r=I[idx]; if(r[IX.tricky])nT++; if(r[IX.dew])nD++; if(r[IX.cens])nC++; mis[r[IX.mi]]=1; if(dOf(idx)===0) nCenter++; });
   const nMatch=Object.keys(mis).length;
   let survSum=0; rows.forEach(function(idx){ survSum+=I[idx][IX.surv]; });
-  sum.innerHTML='格 <b>('+cx+','+cy+')</b> · '+(wsel<0?'全部窗':WIN[wsel])+(sideSel>0?(' · '+(sideSel===2?'天辉':'夜魇')):'')+(trickyOnly?' · 只看刁钻':'')+(censOut?' · 已剔除截断眼':'')+' · 战队 '+(orgSet.length?(orgSet.length+' 支已选'):'全部')+
-    ' · 假眼 <b>'+rows.length+'</b> 支 · 出场 <b>'+nMatch+'</b> 场/'+Math.max(1,AGG?AGG.matchN:1)+
+  sum.innerHTML='格 <b>('+cx+','+cy+')</b> 及其<b>周围 8 格</b> · '+(wsel<0?'全部窗':WIN[wsel])+(sideSel>0?(' · '+(sideSel===2?'天辉':'夜魇')):'')+(trickyOnly?' · 只看刁钻':'')+(censOut?' · 已剔除截断眼':'')+' · 战队 '+(orgSet.length?(orgSet.length+' 支已选'):'全部')+
+    ' · 假眼 <b>'+rows.length+'</b> 支(中心格 <b>'+nCenter+'</b> 支) · 出场 <b>'+nMatch+'</b> 场/'+Math.max(1,AGG?AGG.matchN:1)+
     ' · 每场 <b>'+(rows.length/Math.max(1,AGG?AGG.matchN:1)).toFixed(3)+'</b> · 出现率 <b>'+(100*nMatch/Math.max(1,AGG?AGG.matchN:1)).toFixed(1)+'%</b>'+
     ' · 刁钻 <b>'+nT+'</b> · 被反 <b>'+nD+'</b>'+(nC?' · 截断 <b>'+nC+'</b>':'')+
     (rows.length?(' · 平均存活 <b>'+(survSum/rows.length).toFixed(1)+'s</b>'):'')+
-    '<br><span style="color:#8b949e">点下面任一行 = 在地图上锁定该眼(画白圈 + 显示 match_id/坐标/双方队名)</span>';
-  if(!rows.length){ tb.innerHTML='<tr><td colspan="11" class="c">该格在当前筛选下没有假眼</td></tr>'; return; }
-  rows.forEach(function(idx){
+    '<br><span style="color:#8b949e">「格」列里 <b>C</b>=你点的中心格, <b>N</b>=周围 8 格; 点任一行 = 在地图上锁定该眼(match_id/坐标/双方队名)</span>';
+  if(!rows.length){ tb.innerHTML='<tr><td colspan="12" class="c">该格及其周围 8 格在当前筛选下没有假眼</td></tr>'; return; }
+  const ROWCAP=4000;                       // 周围 8 格(3x3)在大格上可能上千行, 用一个明确上限保UI流畅
+  const shown=Math.min(rows.length, ROWCAP);
+  if(rows.length>ROWCAP){
+    const note=document.createElement('tr');
+    note.innerHTML='<td colspan="12" class="c" style="color:#d29922">共 '+rows.length+' 行, 这里只列出前 '+ROWCAP
+      +' 行(优先中心格)。请用"位置出现次数下限 / 时间窗 / 战队"缩小范围, 或放大后用滚轮继续细看。</td>';
+    tb.appendChild(note);
+  }
+  rows.slice(0, shown).forEach(function(idx){
     const tr=document.createElement('tr'), r=I[idx];
     const org=ORGS[MORG[r[IX.mi]][r[IX.team]===2?0:1]]||'?';
-    tr.innerHTML='<td class="c">'+MIDS[r[IX.mi]]+'</td><td>'+org+'</td><td class="c">'+(r[IX.team]===2?'天辉':'夜魇')+'</td>'+
+    const gx=Math.floor((r[IX.x]+HALF)/CS), gy=Math.floor((r[IX.y]+HALF)/CS), d=dOf(idx);
+    const tag = d===0 ? '<b style="color:#79c0ff">C</b>' : '<span style="color:#8b949e">N</span>';
+    tr.innerHTML='<td class="c">'+MIDS[r[IX.mi]]+'</td><td class="c">'+tag+' ('+gx+','+gy+')</td><td>'+org+'</td><td class="c">'+(r[IX.team]===2?'天辉':'夜魇')+'</td>'+
       '<td>'+mmss(r[IX.place])+'</td><td>'+mmss(r[IX.destroy])+'</td><td>'+r[IX.surv]+'s</td>'+
       '<td class="c" style="color:'+(r[IX.cens]?'#d29922':(r[IX.dew]?'#f85149':'#8b949e'))+'">'+
         (r[IX.dew]?(r[IX.cens]?'被反·记录在赛后':'是被反'):(r[IX.cens]?'存活到比赛结束(截断)':'到期'))+'</td>'+
