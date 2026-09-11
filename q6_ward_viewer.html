@@ -21,7 +21,7 @@ table#drill{width:100%;border-collapse:collapse;font-size:12px;margin-top:8px}
 #tip{position:absolute;background:#161b22ee;border:1px solid #30363d;border-radius:6px;padding:6px 9px;font-size:12px;pointer-events:none;display:none;z-index:9;white-space:nowrap}
 .pgn{font-size:12px;color:#8b949e;margin:6px 0}
 </style></head><body>
-<h1>Q6 · 全战队假眼(Observer)眼位热力 + 刁钻眼位 <span id="build" style="font-size:12px;font-weight:400;color:#8b949e;margin-left:10px">构建 2026-09-11 16:22 · 功能版本 <b>v14</b></span></h1>
+<h1>Q6 · 全战队假眼(Observer)眼位热力 + 刁钻眼位 <span id="build" style="font-size:12px;font-weight:400;color:#8b949e;margin-left:10px">构建 2026-09-11 16:36 · 功能版本 <b>v15</b></span></h1>
 <div class="legend">
 <b>统计单元</b> = 假眼位置(格 <code>172</code> 单位, 与 Q5B 同网格); <b>维度</b> = 战队 × 时间窗(0-7 / 7-20 / 20+ / 全部)。<br>
 <b>刁钻眼位</b>(owner 终版) = 假眼 <code>存活 &gt; 1 分钟</code> 且 <code>存活期间 1200 单位内存在敌方真眼</code>(真视 1050 + 缓冲 1200)
@@ -53,8 +53,8 @@ table#drill{width:100%;border-collapse:collapse;font-size:12px;margin-top:8px}
   <canvas id="cv" width="1024" height="1024"></canvas>
   <div id="tip"></div>
   <div id="dotinfo" style="display:none;font-size:12px;line-height:1.7;background:#161b22;border:1px solid #30363d;border-radius:8px;padding:8px 10px;margin-top:6px;max-width:1024px"></div>
-  <div class="pgn">滚轮缩放 · <b>拖动平移:按住鼠标中键(或右键 / Shift+左键)</b> · <b>点格</b>=切到该格并放大 <b>4 倍</b>(点<b>已经选中的格</b>不再继续放大; 继续放大用滚轮, 回全图用 <b>复位视野</b>) ·
-   <b>放大到 8 格以内</b>会画出该格的眼点图标, <b>点眼点</b>(或点右侧明细表任一行)锁定该眼 · hover 看格子数值</div>
+  <div class="pgn">滚轮缩放 · <b>拖动平移:按住鼠标中键(或右键 / Shift+左键)</b> · <b>点格</b>=切到该格并置为 <b>4 倍档</b>(以该格为中心; 已经更近时只居中、不再放大; 点已选中的格不动) ·
+   其它缩放档位用<b>滚轮</b>, 回全图用 <b>复位视野</b> · <b>放大到 8 格以内</b>会画出该格的眼点图标, <b>点眼点</b>(或点右侧明细表任一行)锁定该眼 · hover 看格子数值</div>
  </div>
  <div class="right">
   <h3 style="margin:8px 0">假眼明细（点地图格子）</h3>
@@ -358,13 +358,16 @@ cv.addEventListener('click', function(e){
   }
   const w=px2world(mx,my);
   const cx=Math.floor((w[0]+HALF)/CS), cy=Math.floor((w[1]+HALF)/CS), k=cx+','+cy;
-  // 点【已经是当前选中的格】-> 不再继续放大(owner 反馈: 连点同一个格会一直缩进去, 收不住)
-  //   想继续放大: 滚轮, 或者点相邻的格(点新格 = 从当前视野放大 4 倍)。回全图: 复位视野 / 滚轮缩小。
+  // 点【已经是当前选中的格】-> 不动(同格重复点不再放大)
   if(selKey===k){ renderDrill(k); render(); return; }
   selKey=k;
-  // 点【别的格】= 以该格为中心, 在当前视野基础上放大 4 倍
+  // 点格只有一个动作: 把视野切到【全图 4 倍】这档(4300 单位)并以该格为中心。
+  //   · 比 4 倍更远(全图/更浅) -> 收到 4 倍
+  //   · 已经在 4 倍或更近(滚轮缩进来的) -> **不再继续放大**, 只把视野重新居中到该格
+  //   其余缩放档位全部交给滚轮(owner 口径: 点格只有"4x / 非 4x"两档)。
+  const W4 = 2*HALF/CLICK_ZOOM;
   const curW = viewRect ? Math.abs(viewRect[1]-viewRect[0]) : 2*HALF;
-  const nw = Math.max(MINW_CLICK, Math.min(2*HALF, curW/CLICK_ZOOM));
+  const nw = Math.max(MINW_CLICK, Math.min(curW, W4));
   const ccx=(cx+0.5)*CS-HALF, ccy=(cy+0.5)*CS-HALF;         // 格中心(世界坐标)
   viewRect=clampView([ccx-nw/2, ccx+nw/2, ccy-nw/2, ccy+nw/2]);
   renderDrill(k); render();
