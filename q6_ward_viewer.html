@@ -44,7 +44,7 @@ table#drill{width:100%;border-collapse:collapse;font-size:12px;margin-top:8px}
   <div style="margin:6px 0"><button class="btn wbtn" data-w="0" onclick="setWin(0)">0-7分</button><button class="btn wbtn" data-w="1" onclick="setWin(1)">7-20分</button><button class="btn wbtn" data-w="2" onclick="setWin(2)">20分后</button><button class="btn wbtn" data-w="-1" onclick="setWin(-1)">全部</button>
    <label class="toggle" style="margin-left:10px"><input type="checkbox" id="tk" onchange="setTricky()"> <b style="color:#ffa657">只看刁钻</b></label>
    <label class="toggle" style="margin-left:10px"><input type="checkbox" id="cx" onchange="setCens()"> <b>剔除截断眼</b>(存活被比赛结束截断)</label></div>
-  <div style="margin:6px 0"><span class="lbl">存活</span><button class="btn vbtn" data-m="avg_surv" onclick="setMetric('avg_surv')">平均存活</button><span class="sep"></span><span class="lbl">数量</span><button class="btn vbtn" data-m="n_obs" onclick="setMetric('n_obs')">假眼出现次数</button><button class="btn vbtn" data-m="n_match" onclick="setMetric('n_match')">出场场次</button><span class="sep"></span><span class="lbl">被反</span><button class="btn vbtn" data-m="dew_rate" onclick="setMetric('dew_rate')">被反率</button><span class="sep"></span><span class="lbl">刁钻</span><button class="btn vbtn" data-m="tricky_rate" onclick="setMetric('tricky_rate')">刁钻率</button><button class="btn vbtn" data-m="n_tricky" onclick="setMetric('n_tricky')">刁钻数</button></div>
+  <div style="margin:6px 0"><span class="lbl">存活</span><button class="btn vbtn" data-m="avg_surv" onclick="setMetric('avg_surv')">平均存活</button><span class="sep"></span><span class="lbl" title="频率类指标: 原始计数, 色标用【对数】避免热点全糊成一片">频率</span><button class="btn vbtn" data-m="n_obs" onclick="setMetric('n_obs')" title="该格出现的假眼支数(原始计数, 受该战队场次多寡影响)">假眼出现次数</button><button class="btn vbtn" data-m="per_match" onclick="setMetric('per_match')" title="支数 ÷ 当前筛选下的场次数 —— 跨战队/跨窗口可比的真·频率">每场出现次数</button><button class="btn vbtn" data-m="use_rate" onclick="setMetric('use_rate')" title="该格至少有 1 支假眼的场次数 ÷ 当前筛选下的场次数 —— 这个点位被使用的概率">出现率</button><button class="btn vbtn" data-m="n_match" onclick="setMetric('n_match')" title="该格涉及多少场比赛">出场场次</button><span class="sep"></span><span class="lbl">被反</span><button class="btn vbtn" data-m="dew_rate" onclick="setMetric('dew_rate')">被反率</button><span class="sep"></span><span class="lbl">刁钻</span><button class="btn vbtn" data-m="tricky_rate" onclick="setMetric('tricky_rate')">刁钻率</button><button class="btn vbtn" data-m="n_tricky" onclick="setMetric('n_tricky')">刁钻数</button></div>
   <div class="sliderbar"><label>底图透明度 <input id="mop" type="range" min="0" max="100" value="35" oninput="setBg()"></label> <span id="moppct">35%</span></div>
   <div class="sliderbar"><label><input id="sl" type="range" min="1" max="400" step="1" value="0" oninput="setCap()"></label> <span>值热力上限 <b id="cap">自动</b></span> <button class="btn" onclick="resetCap()">重置自动</button><br><span id="curdesc"></span></div>
   <div class="sliderbar"><label><input id="ns" type="range" min="0" max="60" value="0" oninput="setN()"> 位置出现次数(假眼数)下限</label> <span id="nsv">0</span></div>
@@ -119,38 +119,51 @@ function clampView(v){
 function orgOf(r){ const mo=MORG[r[IX.mi]]; return mo ? mo[r[IX.team]===2?0:1] : -1; }
 function orgMatch(r){ return orgSet.length===0 || orgSet.indexOf(orgOf(r))>=0; }
 function aggregate(){
-  const cells=Object.create(null), list=[];
+  const cells=Object.create(null), list=[], gmis={};      // gmis: 当前筛选下的去重场次(=频率的分母)
   for(let i=0;i<I.length;i++){
     const r=I[i];
     if(!orgMatch(r)) continue;
     if(wsel>=0 && r[IX.win]!==wsel) continue;
     if(trickyOnly && !r[IX.tricky]) continue;
     if(censOut && r[IX.cens]) continue;
-    list.push(i);
+    list.push(i); gmis[r[IX.mi]]=1;
     const cx=Math.floor((r[IX.x]+HALF)/CS), cy=Math.floor((r[IX.y]+HALF)/CS), k=cx+','+cy;
     let c=cells[k]; if(!c){ c=cells[k]={n:0,ss:0,sd:0,st:0,sc:0,cx:cx,cy:cy,mis:{}}; }
     c.n++; c.ss+=r[IX.surv]; c.sd+=r[IX.dew]; c.st+=r[IX.tricky]; c.sc+=r[IX.cens];
     c.mis[r[IX.mi]]=1;                              // 出场场次(去重)
   }
-  AGG={cells:cells,list:list};
+  AGG={cells:cells,list:list,matchN:Object.keys(gmis).length};   // matchN = 频率指标的分母
   document.getElementById('orgstat').textContent =
-    (orgSet.length?('已选 '+orgSet.length+' 支战队'):'全部战队')+' · 该筛选下假眼 '+list.length+' 支 / 格 '+Object.keys(cells).length;
+    (orgSet.length?('已选 '+orgSet.length+' 支战队'):'全部战队')+' · 该筛选下假眼 '+list.length+' 支 / 场 '+AGG.matchN+' / 格 '+Object.keys(cells).length;
 }
 function valOf(c){
   if(metric==='avg_surv') return c.ss/c.n;
-  if(metric==='n_obs') return c.n;
-  if(metric==='n_match') return Object.keys(c.mis).length;      // 出场场次(该格·该筛选下涉及多少场比赛)
+  if(metric==='n_obs') return c.n;                                  // 原始计数(受场次多寡影响)
+  if(metric==='per_match') return c.n/Math.max(1,AGG.matchN);        // 每场出现次数(跨战队可比)
+  if(metric==='use_rate') return 100*Object.keys(c.mis).length/Math.max(1,AGG.matchN);  // 出现率%
+  if(metric==='n_match') return Object.keys(c.mis).length;           // 出场场次
   if(metric==='dew_rate') return 100*c.sd/c.n;
   if(metric==='tricky_rate') return 100*c.st/c.n;
   if(metric==='n_tricky') return c.st;
   return c.n;
 }
-function unitOf(){ return metric==='avg_surv' ? 's' : (metric.indexOf('rate')>=0 ? '%' : ''); }
+function unitOf(){ return metric==='avg_surv' ? 's' : (metric==='per_match' ? '次/场'
+  : (metric.indexOf('rate')>=0 ? '%' : '')); }
+// 色标: 计数类指标是长尾分布(实测 p95=31 而最大 1174, 取 p95 上限会把 5.2% 的格压成同一色) -> 用【对数】拉开低端
+const LOG_METRICS={n_obs:1,n_match:1,n_tricky:1};
+function colorT(v){
+  const vmax=(capValue!=null?capValue:CAP)||1;
+  if(LOG_METRICS[metric]) return Math.max(0,Math.min(1, Math.log(1+Math.max(0,v))/Math.log(1+vmax)));
+  return Math.max(0,Math.min(1, v/vmax));
+}
 function autoCap(){
   const vals=[]; for(const k in AGG.cells){ const c=AGG.cells[k]; if(c.n>=minN) vals.push(valOf(c)); }
   if(!vals.length) return 1;
   vals.sort(function(a,b){return a-b;});
-  const p=vals[Math.min(vals.length-1, Math.floor(vals.length*0.95))];
+  // 计数类指标是长尾分布, 取 95 分位会把 5.2% 的格压成同一色 -> 取 99 分位(压顶降到 1%)。
+  //   注意: 对数色标下这个"上限"是对数的底, 取大一点低端才拉得开(见 colorT)。
+  const q=LOG_METRICS[metric] ? 0.99 : 0.95;
+  const p=vals[Math.min(vals.length-1, Math.floor(vals.length*q))];
   return (p>0?p:1);
 }
 function cellsFor(){ const out=[]; for(const k in AGG.cells){ const c=AGG.cells[k]; if(c.n>=minN) out.push(c); } return out; }
@@ -237,9 +250,8 @@ function render(){
     }
     ctx.globalAlpha=1;
   }
-  const vmax = (capValue!=null?capValue:CAP) || 1;
   cellsFor().forEach(function(c){
-    const v=valOf(c), t=Math.max(0,Math.min(1, v/vmax));
+    const v=valOf(c), t=colorT(v);
     const col=interp(SEQ,t);
     const xc=(c.cx+0.5)*CS-HALF, yc=(c.cy+0.5)*CS-HALF;
     const p0=w2pView(xc-CS/2, yc+CS/2), p1=w2pView(xc+CS/2, yc-CS/2);
@@ -248,10 +260,13 @@ function render(){
     if(selKey===c.cx+','+c.cy){ ctx.lineWidth=2.5; ctx.strokeStyle='#ffffff'; ctx.strokeRect(p0[0],p0[1],(p1[0]-p0[0]),(p1[1]-p0[1])); }
   });
   drawDots();
-  const mname={avg_surv:'平均存活',n_obs:'假眼出现次数',n_match:'出场场次',dew_rate:'被反率',tricky_rate:'刁钻率',n_tricky:'刁钻数'}[metric];
+  const mname={avg_surv:'平均存活',n_obs:'假眼出现次数',per_match:'每场出现次数',use_rate:'出现率',
+               n_match:'出场场次',dew_rate:'被反率',tricky_rate:'刁钻率',n_tricky:'刁钻数'}[metric];
   document.getElementById('curdesc').textContent =
     '战队:'+(orgSet.length?(orgSet.length+' 支已选'):'全部')+' · '+(wsel<0?'全部':WIN[wsel])+(trickyOnly?' · 只看刁钻':'')+' · '+mname+
-    ' · 上限'+(capValue!=null?capValue.toFixed(1):('自动'+CAP.toFixed(1)))+' · 下限'+minN+
+    ' · 上限'+(capValue!=null?capValue.toFixed(1):('自动'+CAP.toFixed(1)))+
+    (LOG_METRICS[metric]?'(对数色标)':'(线性色标)')+
+    ' · 分母场次'+AGG.matchN+' · 下限'+minN+
     (dotTotal?(' · 图上标注 +'+(selKey?('该格 '+dotTotal+' 支'):('视野内 '+dotTotal+' 支'))
                +(dotCapped?'(过密, 仅画前 '+Math.min(dotTotal, selKey?1500:600)+' 支)':'')):'');
 }
@@ -326,8 +341,11 @@ cv.addEventListener('click', function(e){
 function showTip(e,k,cx,cy){
   const c=AGG.cells[k]; const tip=document.getElementById('tip');
   if(!c){ tip.style.display='none'; return; }
-  tip.innerHTML='格('+cx+','+cy+') 假眼 <b>'+c.n+'</b> 支 · 出场 <b>'+Object.keys(c.mis).length+'</b> 场 · 平均存活 <b>'+(c.ss/c.n).toFixed(1)+'s</b>'+
-    ' · 被反 <b>'+c.sd+'</b> · 刁钻 <b>'+c.st+'</b> ('+(100*c.st/c.n).toFixed(0)+'%)'+
+  const nMatch=Object.keys(c.mis).length, denom=Math.max(1,AGG.matchN);
+  tip.innerHTML='格('+cx+','+cy+') 假眼 <b>'+c.n+'</b> 支 · 出场 <b>'+nMatch+'</b> 场/'+denom+
+    ' · 每场 <b>'+(c.n/denom).toFixed(3)+'</b> 次 · 出现率 <b>'+(100*nMatch/denom).toFixed(1)+'%</b>'+
+    ' · 平均存活 <b>'+(c.ss/c.n).toFixed(1)+'s</b>'+
+    ' · 被反 <b>'+c.sd+'</b> ('+(100*c.sd/c.n).toFixed(0)+'%) · 刁钻 <b>'+c.st+'</b> ('+(100*c.st/c.n).toFixed(0)+'%)'+
     (c.sc?' · 其中截断 <b>'+c.sc+'</b>':'');
   tip.style.display='block'; moveTip(e);
 }
@@ -352,7 +370,9 @@ function renderDrill(k){
   const nMatch=Object.keys(mis).length;
   let survSum=0; rows.forEach(function(idx){ survSum+=I[idx][IX.surv]; });
   sum.innerHTML='格 <b>('+cx+','+cy+')</b> · '+(wsel<0?'全部':WIN[wsel])+(trickyOnly?' · 只看刁钻':'')+(censOut?' · 已剔除截断眼':'')+' · 战队 '+(orgSet.length?(orgSet.length+' 支已选'):'全部')+
-    ' · 假眼 <b>'+rows.length+'</b> 支 · 出场 <b>'+nMatch+'</b> 场 · 刁钻 <b>'+nT+'</b> · 被反 <b>'+nD+'</b>'+(nC?' · 截断 <b>'+nC+'</b>':'')+
+    ' · 假眼 <b>'+rows.length+'</b> 支 · 出场 <b>'+nMatch+'</b> 场/'+Math.max(1,AGG?AGG.matchN:1)+
+    ' · 每场 <b>'+(rows.length/Math.max(1,AGG?AGG.matchN:1)).toFixed(3)+'</b> · 出现率 <b>'+(100*nMatch/Math.max(1,AGG?AGG.matchN:1)).toFixed(1)+'%</b>'+
+    ' · 刁钻 <b>'+nT+'</b> · 被反 <b>'+nD+'</b>'+(nC?' · 截断 <b>'+nC+'</b>':'')+
     (rows.length?(' · 平均存活 <b>'+(survSum/rows.length).toFixed(1)+'s</b>'):'')+
     '<br><span style="color:#8b949e">点下面任一行 = 在地图上锁定该眼(画白圈 + 显示 match_id/坐标/双方队名)</span>';
   if(!rows.length){ tb.innerHTML='<tr><td colspan="11" class="c">该格在当前筛选下没有假眼</td></tr>'; return; }
