@@ -3,6 +3,11 @@
 body{font-family:-apple-system,Segoe UI,Roboto,"Microsoft YaHei",sans-serif;background:#0d1117;color:#e6edf3;margin:20px}
 h1{font-size:20px;margin:0 0 8px}.legend{background:#161b22;border:1px solid #30363d;border-radius:8px;padding:12px 16px;margin:10px 0;font-size:13px;line-height:1.75}
 .legend b{color:#79c0ff}.legend code{background:#0d1117;padding:1px 5px;border-radius:4px;color:#ffa657}
+.legend h4{margin:12px 0 4px;font-size:14px;color:#e6edf3;border-bottom:1px solid #21262d;padding-bottom:3px}
+.legend h4:first-child{margin-top:0}
+table.help{border-collapse:collapse;margin:4px 0 2px}
+table.help td{border:none;padding:1px 12px 1px 0;vertical-align:top;line-height:1.7}
+table.help td:first-child{white-space:nowrap;color:#e6edf3}
 .controls{margin:8px 0 10px;background:#11161d;border:1px solid #21262d;border-radius:8px;padding:8px 12px}
 .wrap{display:flex;gap:12px;align-items:flex-start;flex-wrap:nowrap}
 /* 布局: 地图左、明细表右。两条硬约束:
@@ -27,20 +32,52 @@ table#drill{width:100%;border-collapse:collapse;font-size:12px;margin-top:8px}
 #tip{position:absolute;background:#161b22ee;border:1px solid #30363d;border-radius:6px;padding:6px 9px;font-size:12px;pointer-events:none;display:none;z-index:9;white-space:nowrap}
 .pgn{font-size:12px;color:#8b949e;margin:6px 0}
 </style></head><body>
-<h1>Q6 · 全战队假眼(Observer)眼位热力 <span id="build" style="font-size:12px;font-weight:400;color:#8b949e;margin-left:10px">构建 2026-09-16 17:57 · 功能版本 <b>v18</b></span></h1>
+<h1>职业比赛 · 假眼（侦察守卫）眼位热力图 <span id="build" style="font-size:12px;font-weight:400;color:#8b949e;margin-left:10px">构建 2026-09-16 18:10 · 功能版本 <b>v19</b></span></h1>
 <div class="legend">
-<b>统计单元</b> = 假眼位置(格 <code>172</code> 单位, 与 Q5B 同网格); <b>维度</b> = 战队 × 阵营 × 时间窗(0-7 / 7-20 / 20+ / 全部)。<br>
-<b>⚠ 刁钻眼位的统计已按 owner 要求从本页移除</b>(口径要重新考虑) —— 页面上不再有"刁钻"的开关 / 指标 / 明细列 / 颜色编码;
-数据文件里仍保留该标记(`q6_obs_instances.json` 的 `tricky` 列), 等新口径定了再开。<br>
-<b><span style="color:#79c0ff">■</span> 蓝圈</b>=普通假眼, <b><span style="color:#f85149">■</span> 红圈</b>=被反 —— 图标本身用<b>官方假眼图标</b>(与 Q5B 同款), 颜色编码画在图标外圈。<br>
-<b>⚠ 存活截断(右删失)</b>: 比赛在<b>远古被摧毁</b>时结束, 但战斗日志此后仍记录约 6~15 分钟结算残留 ——
-未被反的假眼若"放置+360s"晚于比赛结束, 其存活已改为 <b>结束时刻−放置时刻</b> 并标 <b>截断</b>(实测约 9.5%)。
-测"平均存活"时可勾选 <b>剔除截断眼</b>(存活时长无完整观测)。<br>
-口径继承 Q5B(判型靠实体类名 / 放置用 use 候选窗 / 到期=放置+寿命 / 销毁全局一一对应), 详见 <code>STRATEGY/DEM_FORMAT.md §C6.9</code>。
-<b>期间敌方真眼 / 最近距离</b> 两列给出 <b>达标/任意</b> 两个数：<b>达标</b>=共存 ≥60s 的敌方真眼，<b>任意</b>=半径 1200 内窗口有交集的敌方真眼（哪怕只共存 1 秒）。
-<b>最长共存</b> 列给的是<b>任意交集</b>里的最长共存。<br>
-<b>战队筛选</b>：不勾任何一支 = <b>全部战队</b>（含 Xtreme Gaming / Vici Gaming / Team Resilience / Yakutou Brothers 这 4 支，
-按 owner 要求它们<b>只出现在总量里、不提供单项筛选</b>）。
+<h4>这是什么</h4>
+把 <b>970 场职业比赛</b>里每一支<b>假眼（侦察守卫）</b>的插入位置铺到地图上，按格子统计成热力图，用来回答"哪些位置常被插眼、这些眼活了多久、有多少被反掉"。
+地图被划成 <b>100 × 100 个方格</b>，每格 <b>172 单位</b>见方；每支眼归属到<b>一支战队</b>、一个<b>阵营</b>（天辉 / 夜魇）和一个<b>时间窗</b>，可以任意组合筛选。
+（本页只统计<b>假眼</b>；真眼（岗哨守卫）只在"期间敌方真眼"这类参考列里出现。）
+<h4>怎么用</h4>
+<b>① 筛选</b>（左上角控制区）：<b>战队</b>可多选，<b>一支都不勾 = 全部战队</b>（其中 Xtreme Gaming、Vici Gaming、Team Resilience、Yakutou Brothers 四支不提供单独筛选，只计入"全部战队"）；<b>阵营</b>选天辉 / 夜魇 / 全部；<b>时间窗</b>按插眼时刻分 0-7 分 / 7-20 分 / 20 分后 / 全部；<b>指标</b>决定地图颜色代表什么（见下表）。<br>
+<b>② 滑块</b>：<b>底图透明度</b>调节背景地图浓淡；<b>值热力上限</b>决定颜色从冷到热的取值范围（默认"自动"按当前数据的分布取一个合适的上限，也可以手动拖到某个数，让差异更明显）；<b>位置出现次数下限</b>隐藏样本太少的格子（避免"只出现过 1 支眼"的格子被误读）。<br>
+<b>③ 地图操作</b>：<b>滚轮</b>缩放（以光标为中心）；<b>按住鼠标中键拖动</b>平移（没有中键可用<b>右键拖动</b>或 <b>Shift + 左键拖动</b>）；<b>单击格子</b> = 把视野切成"整张图 1/4 大小"并<b>以该格为中心</b>（再点别的格只会重新居中，不会继续放大；继续放大请用滚轮）；<b>复位视野</b>按钮回到整张图；鼠标悬停显示该格的数值。<br>
+<b>④ 查看某一格</b>：单击格子后，右侧表格列出<b>该格及其周围 8 格</b>的全部假眼（一行 = 一支眼，按"中心格优先"排序，格子列标 <b>C</b> = 你点的格、<b>N</b> = 周围 8 格）。<br>
+<b>⑤ 看单支眼的详情</b>：选中格子后，该格的眼会以<b>守卫图标</b>画在地图上（放大到一定程度才显示，避免图标互相遮挡）。<b>点图标</b>（或点右侧表格里的一行）即可锁定该眼，地图上方显示它的比赛编号、坐标、双方战队和全部字段；再点一次取消锁定。<br>
+<b>⑥ 想找什么就选什么指标</b>：找"常被插眼的点位"用 <b>出现率</b> 或 <b>每场出现次数</b>（已按场次归一，跨战队可比）；找"插了眼就容易被反的点位"用 <b>被反率</b>，并建议先把 <b>位置出现次数下限</b> 调到 5 以上，避免样本太少的格子带来噪声；看"某个点位是不是打了很久都没人管"用 <b>平均存活</b>。
+<h4>地图颜色代表什么（指标）</h4>
+<table class="help">
+<tr><td><b>平均存活</b></td><td>该格（在当前筛选下）每支眼的平均存活秒数；假眼寿命上限 6 分钟（360 秒）。</td></tr>
+<tr><td><b>假眼出现次数</b></td><td>该格出现过的假眼<b>支数</b>（原始计数：打得多的战队自然更多，跨战队比较请用下面两个）。</td></tr>
+<tr><td><b>每场出现次数</b></td><td>支数 ÷ 当前筛选下的比赛场次数 —— 归一化后的频率，跨战队/跨时间窗可比。</td></tr>
+<tr><td><b>出现率</b></td><td>该格<b>至少有 1 支假眼</b>的比赛场次数 ÷ 当前筛选下的比赛场次数 —— 即"这个点位被使用的概率"。</td></tr>
+<tr><td><b>出场场次</b></td><td>该格涉及多少场比赛。</td></tr>
+<tr><td><b>被反率</b></td><td>该格被反掉的眼数 ÷ 该格总眼数 ×100%（"被反"见下方说明）。</td></tr>
+</table>
+数量类指标（出现次数 / 出场场次）在大范围取值上差异极大，因此颜色用<b>对数刻度</b>，让"少"和"很多"都能看出层次。
+<h4>地图上的标记</h4>
+<b>守卫图标</b> = 一支假眼（位置即插眼点）。外圈颜色：<b><span style="color:#79c0ff">■</span> 蓝色 = 未被反</b>（活满 6 分钟自然消失，或比赛结束时仍在），<b><span style="color:#f85149">■</span> 红色 = 被反</b>（被摧毁）。
+<b>白色方框</b> = 当前选中的格子；被你锁定的那一支眼会额外套一个白圈。
+<h4>右侧表格各列</h4>
+<table class="help">
+<tr><td><b>match_id</b></td><td>比赛编号（可在录像站按编号检索该局）。</td></tr>
+<tr><td><b>格</b></td><td>该眼所在格子；<b>C</b> = 你点的那一格，<b>N</b> = 它周围的 8 格；括号内是格坐标。</td></tr>
+<tr><td><b>战队 / 阵营</b></td><td>插下这支眼的战队，以及它属于天辉还是夜魇。</td></tr>
+<tr><td><b>放置 / 销毁</b></td><td>插入时刻与消失时刻（游戏内时间，分钟:秒）。</td></tr>
+<tr><td><b>存活</b></td><td>存活秒数（= 销毁 − 放置）。</td></tr>
+<tr><td><b>被反 / 存活状态</b></td><td><b>是被反</b> = 被敌方摧毁（英雄、小兵、防御塔、野怪都算，也包括同队主动清除）；<b>到期</b> = 活满 6 分钟后自动消失；<b>存活到比赛结束</b> = 比赛结束时它还活着（见下方第 2 条）。</td></tr>
+<tr><td><b>期间敌方真眼</b></td><td>该眼存活期间、距离 1200 单位以内的敌方真眼<b>支数</b>，给两个数：<b>达标</b> = 其中共存时间 ≥ 60 秒的支数，<b>任意</b> = 只要时间上有交集就算的支数（哪怕只共存 1 秒）。</td></tr>
+<tr><td><b>最近距离</b></td><td>上述敌方真眼中最近的距离（单位），同样分"达标 / 任意"。</td></tr>
+<tr><td><b>最长共存</b></td><td>该眼与任意一支敌方真眼最长的共存秒数（用于判断"附近有真眼却没被反"是否真的持续了一段时间）。</td></tr>
+</table>
+点表格里任意一行 = 在地图上锁定该支眼。
+<h4>读数字时要注意</h4>
+<b>1. 假眼寿命固定 6 分钟。</b>没有被摧毁的眼到点自动消失，所以"存活"最大就是 360 秒。<br>
+<b>2. 标"存活到比赛结束"的眼，存活时间被截短了。</b>比赛在该眼自然消失之前结束（远古被摧毁即结束），这类眼只能统计到比赛结束那一刻——这是比赛时长限制，不是数据缺失。勾选 <b>剔除截断眼</b> 可以把这类眼排除，只看有完整观测的样本（其数量不多，但会让末段时间窗的"平均存活"略微偏高，勾选后即可对照）。<br>
+<b>3. "被反"包含一切非自然消失</b>：敌方英雄摧毁、小兵/塔/野怪打掉，以及同队主动清除（例如为换位置而自己反掉）。<br>
+<b>4. 样本太少的格子波动很大。</b>只出现过 1-2 支眼时，"平均存活 / 被反率"会被个别情况主导；用<b>位置出现次数下限</b>滑块可以只保留样本足够的格子。<br>
+<b>5. 时间窗按"插入时刻"划分</b>，0-7 分窗包含比赛开始前的布眼（开局前插的眼也算在这一窗）。<br>
+<b>6. 坐标与方位</b>：地图中心是 (0, 0)；天辉（Radiant）基地在左下（x、y 均为负），夜魇（Dire）基地在右上。
 </div>
 <div class="controls">
  <div><label class="lbl" style="font-size:12px">战队(可多选) </label>
@@ -109,7 +146,7 @@ function interp(st,t){ if(t<=st[0][0])return st[0][1]; if(t>=st[st.length-1][0])
 function rgb(c){ return 'rgb('+c[0]+','+c[1]+','+c[2]+')'; }
 function mmss(s){ if(s==null||isNaN(s))return '—'; s=Math.round(s); const m=Math.floor(Math.abs(s)/60), q=Math.abs(s)%60; return (s<0?'-':'')+m+':'+String(q).padStart(2,'0'); }
 
-// ---- 坐标变换(与 Q5B 同一标定) ----
+// ---- 世界坐标 -> 底图像素(标定常数) ----
 function w2p(x,y){ return [CALIB_OFFX+CALIB_K*x, CALIB_REF_Y-CALIB_K*y]; }
 function w2pView(x,y){
   if(!viewRect){ return w2p(x,y); }
@@ -192,7 +229,7 @@ function drawDot(p,color){
 function drawDots(){
   if(!AGG) return;
   // 什么时候画眼点图标:
-  //   · 有选中格 -> **在 4 倍档及其以内都画**(owner 要求: 4x 就要看到假眼的准确位置), 超过 4 倍档(滚轮拉远)不画
+  //   · 有选中格 -> 在 4 倍档及其以内都画(便于直接看到位置), 超过 4 倍档(滚轮拉远)不画
   //   · 没选中格 -> 只有放大到 8 格以内才画(否则整个视野几千支会糊成一片)
   const vw = viewRect ? Math.abs(viewRect[1]-viewRect[0]) : null;
   const showSel = !!selKey && vw !== null && vw <= CS*25*1.02;      // CS*25 = 全图/4 = 4 倍档
@@ -225,7 +262,7 @@ function drawDots(){
     const isD=r[IX.dew]===1;
     DOTS.push([p[0],p[1],idx,Math.floor((r[IX.x]+HALF)/CS)+','+Math.floor((r[IX.y]+HALF)/CS)]);  // [x,y,实例号,格键]
     if(iconReady){
-      ctx.drawImage(obsIcon, p[0]-s/2, p[1]-s/2, s, s);     // ★ 官方假眼图标(Q5B 同款, 页面里早已内嵌 base64)
+      ctx.drawImage(obsIcon, p[0]-s/2, p[1]-s/2, s, s);     // 官方假眼图标(内嵌 base64)
     } else {                                                 // 图标没加载出来时的兜底: 实心点
       ctx.beginPath(); ctx.arc(p[0],p[1], Math.max(2.5, s*0.28), 0, 6.2832);
       ctx.fillStyle = isD ? '#f85149' : '#79c0ff'; ctx.fill();
@@ -269,8 +306,8 @@ function render(){
   ctx.fillStyle='#0d1117'; ctx.fillRect(0,0,CSX,CSX);
   if(bgReady && bgOp>0){
     ctx.globalAlpha=bgOp/100;
-    // ★ 底图必须跟随视野: 放大/平移时按【源裁剪】把视野对应的底图区域铺满画布。
-    //   之前一直写 drawImage(bgimg,0,0,CSX,CSX) —— 底图永远是整张全图, 放大后跟热力块/眼点对不上(Q5B 用的是源裁剪)。
+    // 底图必须跟随视野: 放大/平移时按【源裁剪】把视野对应的底图区域铺满画布;
+    //   否则底图永远是整张全图, 放大后会与热力块/眼点错位。
     if(viewRect){
       const p0=w2p(viewRect[0], viewRect[3]), p1=w2p(viewRect[1], viewRect[2]);
       ctx.drawImage(bgimg, p0[0], p0[1], p1[0]-p0[0], p1[1]-p0[1], 0, 0, CSX, CSX);
@@ -302,8 +339,8 @@ function render(){
 }
 
 // ---- 交互 ----
-// 平移 = **按住鼠标中键拖动**(owner 要求)。但很多鼠标/触控板没有中键(实测 owner 那边按不出来),
-//   所以同时支持 **右键拖动** 与 **Shift + 左键拖动**; 左键单击(无修饰键)只用来点格/点眼。
+// 平移: 按住鼠标中键拖动。很多鼠标/触控板没有中键, 因此同时支持右键拖动与 Shift+左键拖动;
+//   左键单击(无修饰键)只用来点格/点眼。
 let dragging=false, lastX=0, lastY=0, shiftDown=false, dragEndedAt=0;
 function dragButton(e){ return e.button===1 || e.button===2 || (e.button===0 && (e.shiftKey || shiftDown)); }
 cv.addEventListener('contextmenu', function(e){ if(e.preventDefault) e.preventDefault(); });   // 右键拿来拖动, 不弹菜单
@@ -345,7 +382,7 @@ cv.addEventListener('mouseleave', function(){ document.getElementById('tip').sty
 cv.addEventListener('wheel', function(e){
   e.preventDefault();
   // ★ 拖动中 / 中键或右键**正被按住**时不吃滚轮: 很多鼠标按住滚轮(中键)时设备仍在发 wheel 事件,
-  //   那些事件会把拖动顺带变成缩放(owner 反馈"中键按下去还带着缩放, 拖动效果很差")。
+  //   那些事件会把拖动顺带变成缩放, 导致拖动时视野抖动。
   //   用 e.buttons 位掩码判断(2=右键, 4=中键) —— 比"拖动结束后 N 毫秒内忽略"确定, 也不会有时间魔法。
   if(dragging || ((e.buttons|0) & 6)){ return; }
   const rect=cv.getBoundingClientRect(), sx=CSX/rect.width;
@@ -385,7 +422,7 @@ cv.addEventListener('click', function(e){
   // 点格只有一个动作: 把视野切到【全图 4 倍】这档(4300 单位)并以该格为中心。
   //   · 比 4 倍更远(全图/更浅) -> 收到 4 倍
   //   · 已经在 4 倍或更近(滚轮缩进来的) -> **不再继续放大**, 只把视野重新居中到该格
-  //   其余缩放档位全部交给滚轮(owner 口径: 点格只有"4x / 非 4x"两档)。
+  //   其余缩放档位交给滚轮(点格只有"设为 4 倍档"与"只重新居中"两种结果)。
   const W4 = 2*HALF/CLICK_ZOOM;
   const curW = viewRect ? Math.abs(viewRect[1]-viewRect[0]) : 2*HALF;
   const nw = Math.max(MINW_CLICK, Math.min(curW, W4));
@@ -415,7 +452,7 @@ function renderDrill(k){
   const sum=document.getElementById('sum');
   if(!k){ sum.textContent='点一个格子看该格及其周围 8 格的假眼明细(match_id / 时刻 / 存活 / 被反 / 期间敌方真眼)。'; return; }
   const cx=parseInt(k.split(',')[0],10), cy=parseInt(k.split(',')[1],10);
-  // 明细范围 = 中心格 + 周围 8 格(owner 要求"显示周围 8 格假眼位置的详细情况")
+  // 明细范围 = 中心格 + 周围 8 格
   const rows=[];                       // 存【实例号】而不是行引用, 这样每行都能点开锁定
   const inBlock={}, blockKey=[];
   for(let dx=-1;dx<=1;dx++) for(let dy=-1;dy<=1;dy++){ const kk=(cx+dx)+','+(cy+dy); inBlock[kk]=1; }
