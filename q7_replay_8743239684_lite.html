@@ -4,43 +4,59 @@
 :root{--bg:#0d1117;--pnl:#161b22;--pnl2:#21262d;--bd:#30363d;--fg:#e6edf3;--dim:#8b949e;
       --rad:#4aa564;--dire:#d24b4b;--acc:#1f6feb;--gold:#e3b341}
 *{box-sizing:border-box}
-body{font-family:-apple-system,"Segoe UI",Roboto,"Microsoft YaHei",sans-serif;background:var(--bg);color:var(--fg);margin:0;padding:14px 18px 40px}
-h1{font-size:17px;margin:0 0 4px}
-.sub{color:var(--dim);font-size:12px;line-height:1.7;margin-bottom:10px}
+html,body{height:100%}
+/* 一屏布局：整页不做纵向滚动，右栏（combat log）自己滚。地图按剩余高度定尺寸（JS fitCanvas）。 */
+body{font-family:-apple-system,"Segoe UI",Roboto,"Microsoft YaHei",sans-serif;background:var(--bg);color:var(--fg);
+     margin:0;padding:8px 12px;height:100vh;overflow-x:hidden;overflow-y:auto;
+     display:flex;flex-direction:column;gap:8px}
+h1{font-size:15px;margin:0;flex:0 0 auto}
+.sub{color:var(--dim);font-size:11.5px;line-height:1.5;margin:0}
 .sub b{color:#79c0ff}
-.panel{background:var(--pnl);border:1px solid var(--bd);border-radius:8px;padding:10px 12px}
-#timeline{margin-top:14px}
-#timeline .tlrow{margin:6px 0}
+.panel{background:var(--pnl);border:1px solid var(--bd);border-radius:8px;padding:8px 10px}
+#timeline{margin-top:0;flex:0 0 auto}
+#timeline .tlrow{margin:0}
 /* ---------- 顶部数值条 ---------- */
-#top{display:flex;flex-wrap:wrap;gap:10px;align-items:stretch;margin-bottom:10px}
-.stat{background:var(--pnl);border:1px solid var(--bd);border-radius:8px;padding:8px 14px;min-width:150px}
-.stat .k{color:var(--dim);font-size:11px;letter-spacing:.4px}
-.stat .v{font-size:22px;font-weight:700;font-variant-numeric:tabular-nums;line-height:1.25}
-.stat .s{color:var(--dim);font-size:11px}
-.stat.clock .v{font-size:26px;color:#fff}
+#top{display:flex;flex-wrap:wrap;gap:8px;align-items:stretch;margin-bottom:0;flex:0 0 auto}
+.stat{background:var(--pnl);border:1px solid var(--bd);border-radius:8px;padding:5px 10px;min-width:126px}
+.stat .k{color:var(--dim);font-size:10px;letter-spacing:.3px;white-space:nowrap}
+.stat .v{font-size:19px;font-weight:700;font-variant-numeric:tabular-nums;line-height:1.2}
+.stat .s{color:var(--dim);font-size:9.5px;line-height:1.35}
+.stat.clock .v{font-size:22px;color:#fff}
 .rad{color:var(--rad)}.dir{color:var(--dire)}.zero{color:var(--dim)}
-#sparkwrap{background:var(--pnl);border:1px solid var(--bd);border-radius:8px;padding:6px 8px 2px;flex:1;min-width:320px}
-#spark{width:100%;height:78px;display:block;cursor:crosshair}
-.sparkhint{color:var(--dim);font-size:11px;padding:0 2px 4px;display:flex;justify-content:space-between}
-/* ---------- 主体 ---------- */
-.wrap{display:grid;grid-template-columns:minmax(0,calc(50% + 18px)) minmax(0,1fr);gap:14px;align-items:flex-start}
-.left{min-width:0}
-.right{min-width:0;position:sticky;top:10px}
-@media(max-width:1180px){.wrap{grid-template-columns:minmax(0,1fr)}.right{width:100%;position:static}}
-#mapwrap{position:relative;background:var(--pnl);border:1px solid var(--bd);border-radius:8px;padding:8px}
-#cv{border:1px solid var(--bd);border-radius:6px;background:#0d1117;display:block;width:100%;height:auto;
-    aspect-ratio:1/1;cursor:grab;touch-action:none}
-.mapbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-size:12px;color:var(--dim);margin-top:6px}
+#sparkwrap{background:var(--pnl);border:1px solid var(--bd);border-radius:8px;padding:4px 8px 0;flex:1;min-width:320px}
+#spark{width:100%;height:48px;display:block;cursor:crosshair}
+.sparkhint{color:var(--dim);font-size:10.5px;padding:0 2px 2px;display:flex;justify-content:space-between}
+/* ---------- 主体：左＝地图+头像，右＝明细/combat log，各占一半宽 ---------- */
+.wrap{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px;align-items:stretch;
+      flex:1 1 auto;min-height:0}
+.left{min-width:0;min-height:0;display:flex;flex-direction:column;gap:6px}
+.right{min-width:0;min-height:0;overflow:auto;overscroll-behavior:contain}
+@media(max-width:1180px){
+  body{height:auto;overflow:auto;display:block}
+  .wrap{grid-template-columns:minmax(0,1fr);display:block}
+  .left,.right{min-height:0;overflow:visible}
+  #mapbox{min-height:0}
+  #cv{width:100%!important;height:auto!important}
+  #timeline{margin-bottom:10px}
+}
+#mapwrap{position:relative;background:var(--pnl);border:1px solid var(--bd);border-radius:8px;padding:6px;
+         flex:1 1 auto;min-height:0;display:flex;flex-direction:column}
+#mapbox{flex:1 1 auto;min-height:200px;display:flex;align-items:center;justify-content:center}
+#cv{border:1px solid var(--bd);border-radius:6px;background:#0d1117;display:block;width:512px;height:512px;
+    cursor:grab;touch-action:none}
+.mapbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-size:11.5px;color:var(--dim);margin-top:5px}
 .mapbar input[type=range]{vertical-align:middle;accent-color:var(--acc)}
 .btn{background:var(--pnl2);border:1px solid var(--bd);border-radius:14px;padding:5px 12px;cursor:pointer;font-size:12px;color:var(--fg)}
 .btn:hover{border-color:#4d5866}
 .btn.active{background:var(--acc);border-color:var(--acc);color:#fff}
 .btn.big{font-size:14px;padding:7px 16px;border-radius:16px}
-/* ---------- 头像 ---------- */
-#avatars{display:flex;flex-direction:column;gap:6px;margin-top:8px}
-.arow{display:flex;gap:6px;align-items:center}
-.arow .tl{width:34px;font-size:11px;color:var(--dim);text-align:right}
-.hero{position:relative;width:52px;height:52px;border-radius:8px;overflow:hidden;border:2px solid #333;
+/* ---------- 头像（地图下方一行 10 个：天辉 5 ｜ 夜魇 5） ---------- */
+#avatars{display:flex;flex-direction:column;gap:5px;margin-top:0;flex:0 0 auto}
+.arow{display:flex;gap:5px;align-items:center;flex-wrap:wrap}
+.arow .tl{width:30px;font-size:11px;text-align:right;flex:0 0 auto}
+.arow .tblk{display:flex;gap:5px}
+.arow .tdiv{width:1px;height:36px;background:#30363d;margin:0 3px;flex:0 0 auto}
+.hero{position:relative;width:48px;height:48px;border-radius:8px;overflow:hidden;border:2px solid #333;
       cursor:pointer;background:#222;flex:0 0 auto}
 .hero img{width:100%;height:100%;object-fit:cover;display:block}
 .hero .nm{position:absolute;left:0;right:0;bottom:0;font-size:9px;text-align:center;background:#000a;color:#ddd;
@@ -50,22 +66,25 @@ h1{font-size:17px;margin:0 0 4px}
 .hero.t2{border-color:var(--rad)}.hero.t3{border-color:var(--dire)}
 .hero .hpbar{position:absolute;left:0;top:0;height:3px;background:#3fb950}
 /* ---------- 时间轴 ---------- */
-#timeline{margin-top:8px}
-.tlrow{display:flex;gap:10px;align-items:center;margin:6px 0}
-.tlrow .lb{width:96px;font-size:12px;color:var(--dim);flex:0 0 auto;text-align:right}
+#timeline{margin-top:0}
+.tlrow{display:flex;gap:8px;align-items:center;margin:0;flex-wrap:wrap}
+.tlrow .lb{width:auto;font-size:11.5px;color:var(--dim);flex:0 0 auto}
+.tlrow .sep{color:#30363d}
+.tlrow #smallwrap{flex:0 1 320px;min-width:140px}
 input[type=range]{width:100%;accent-color:var(--acc)}
 #big{-webkit-appearance:none;appearance:none;height:16px;background:transparent}
 #big::-webkit-slider-runnable-track{height:8px;background:#21262d;border:1px solid var(--bd);border-radius:5px}
 #big::-webkit-slider-thumb{-webkit-appearance:none;width:12px;height:20px;margin-top:-7px;border-radius:3px;background:var(--acc);border:1px solid #fff3;cursor:pointer}
 #small::-webkit-slider-thumb{cursor:pointer}
 /* ── 时间轴：上下事件带（天辉有利在上、夜魇有利在下）── */
-.tlaxis{position:relative;margin-top:4px}
-.evlane{position:relative;height:30px}
+.tlaxis{position:relative;margin-top:2px}
+.evlane{position:relative;height:65px}
 .evlane .evt{position:absolute;border-radius:1px}
 .evlane .evt.b{width:3px}
-.tlaxis .evhint{font-size:10.5px;color:#8b949e;line-height:14px}
+.tlaxis .evhint{font-size:10px;color:#8b949e;line-height:13px;display:flex;gap:8px;align-items:baseline}
 .tlaxis .evhint.up{color:#8b949e}
-.tlaxis .evhint .lg{color:#8b949e;margin-left:8px;font-size:10px}
+.tlaxis .evhint .lg{color:#8b949e;font-size:10px}
+.tlaxis .evhint .tmax{margin-left:auto;color:#8b949e}
 /* 事件标记：图标（+可选 mm:ss）；上方=天辉有利、下方=夜魇有利 */
 .evm{position:absolute;transform:translateX(-50%);cursor:pointer;display:flex;flex-direction:column;
      align-items:center;gap:0;padding:1px 2px;border-radius:4px;border:1px solid transparent}
@@ -83,7 +102,9 @@ input[type=range]{width:100%;accent-color:var(--acc)}
 .axrow{position:relative}
 #big{width:100%}
 #smallwrap{position:relative}
-#scenter{position:absolute;left:50%;top:-2px;width:1px;height:22px;background:#8b949e;opacity:.6;pointer-events:none}
+#scenter{position:absolute;left:50%;top:-1px;width:1px;height:14px;background:#8b949e;opacity:.6;pointer-events:none}
+.smalllbl{font-size:10.5px;color:var(--dim);white-space:nowrap}
+.nowlbl{font-size:11.5px;color:#c9d1d9;font-variant-numeric:tabular-nums;white-space:nowrap}
 .tip{color:var(--dim);font-size:11px;line-height:1.7}
 .tip b{color:#79c0ff}
 /* ---------- 右表 ---------- */
@@ -138,10 +159,8 @@ code{background:#21262d;padding:1px 4px;border-radius:3px;font-size:11px}
 </style></head><body>
 
 <h1>Q7 · 全盘复现交互 UI（回放浏览器）— match <span id="mid">8743239684</span>
-  <span class="sub" style="font-weight:400">联赛 19422 ｜ <b>Team Yandex</b> vs <b>MOUZ</b> ｜ 结果 天辉胜 ｜ 游戏时长 30:56</span></h1>
-<div class="sub">数据源 <code>dems/db_full/19422/8743239684.db</code> → <code>analysis/output_q7/q7_8743239684.json</code>。时间轴一律为<b>显示时钟（0:00 = 号角）</b>；
-  比赛结束 = 远古被摧毁（<code>fort_destroyed</code>）。本场测得暂停 <b>-0.1 s</b>（回放钟 4 段锚点 35391 个，Δ_file=8.93s）——
-  位置/净值等"回放钟"数据已按"暂停时实体静止"的物理证据折回显示时钟。</div>
+  <span class="sub" style="font-weight:400">联赛 19422 ｜ <b>Team Yandex</b> vs <b>MOUZ</b> ｜ 结果 天辉胜 ｜ 游戏时长 30:56
+  ｜ 显示时钟（0:00=号角）｜ 暂停 -0.1s ｜ 数据源 <code>dems/db_full/19422/8743239684.db</code></span></h1>
 
 <div id="top">
   <div class="stat clock"><div class="k">当前时刻</div><div class="v" id="vClock">0:00</div>
@@ -169,46 +188,44 @@ code{background:#21262d;padding:1px 4px;border-radius:3px;font-size:11px}
 
 <div class="panel" id="timeline">
     <div class="tlrow">
-      <span class="lb">播放</span>
       <button class="btn big" id="play">▶ 播放</button>
       <button class="btn" onclick="step(-5)">« 5s</button>
       <button class="btn" onclick="step(5)">5s »</button>
-      <span class="lbl" style="color:var(--dim);font-size:12px">速度</span>
       <button class="btn spd active" data-s="1" onclick="setSpeed(1)">1×</button>
       <button class="btn spd" data-s="2" onclick="setSpeed(2)">2×</button>
       <button class="btn spd" data-s="4" onclick="setSpeed(4)">4×</button>
       <span class="sep">｜</span>
       <label class="toggle"><input type="checkbox" id="showTL" onchange="buildTimelineEvents()"> 时间戳文字</label>
       <label class="toggle"><input type="checkbox" id="tlBld" onchange="buildTimelineEvents()"> 只标建筑/肉山</label>
+      <span class="sep">｜</span>
+      <span class="lb">±60s</span>
+      <div id="smallwrap">
+        <input type="range" id="small" min="-60" max="60" value="0" step="0.5">
+        <div id="scenter"></div>
+      </div>
+      <b class="nowlbl" id="biglabel">—</b>
+      <span class="smalllbl" id="smalllabel"></span>
       <span class="tip" style="margin-left:auto">空格=播放/暂停 ｜ ←→=±5s ｜ 点图标=跳到该时刻</span>
     </div>
 
     <div class="tlaxis">
-      <div class="evhint up">▲ 对<b class="dr">天辉</b>有利<span class="lg">图标＝阵亡英雄头像 / 被毁的塔·兵营·基地·肉山；<b>描边色＝它属于哪一方</b>（绿=天辉、红=夜魇、灰=无主·肉山）；悬停看说明，点图标跳到该时刻</span><span style="float:right;color:#8b949e">大时间轴：全场 0:00 → 30:56</span></div>
       <div class="evlane" id="evUp"></div>
       <div class="axrow">
         <input type="range" id="big" min="0" max="1" value="0" step="0.5">
       </div>
       <div class="evlane" id="evDn"></div>
-      <div class="evhint dn">▼ 对<b class="dd">夜魇</b>有利</div>
+      <div class="evhint">▲ 上＝对<b class="dr">天辉</b>有利 ｜ ▼ 下＝对<b class="dd">夜魇</b>有利 ｜
+        图标＝阵亡英雄头像 / 被毁的塔·兵营·基地·肉山 ｜ 描边色＝它属于哪一方（绿天辉·红夜魇·灰无主肉山）｜
+        点图标跳到该时刻<span class="tmax">大时间轴：全场 0:00 → 30:56</span></div>
     </div>
-    <div class="tip" id="biglabel">—</div>
-
-    <div class="tlrow"><span class="lb">小时间轴<br><span style="font-size:10px">±60s</span></span>
-      <div style="flex:1;min-width:0" id="smallwrap">
-        <input type="range" id="small" min="-60" max="60" value="0" step="0.5">
-        <div id="scenter"></div>
-        <div class="tip" id="smalllabel">—</div>
-      </div>
-    </div>
-    <div class="tip"><b>双条语义</b>：拖小条 → 实际时刻 = 大条 + 小条偏移（地图/表格实时跟随，大条滑块同步小幅移动）；
-      <b>松手提交</b> → 大条推进"滑过的量"，小条<b>瞬时归零</b>。点火花线/拖大条 = 直接绝对定位（小条归零）。</div>
   </div>
 
 <div class="wrap">
 <div class="left">
   <div id="mapwrap">
+   <div id="mapbox">
     <canvas id="cv" width="1024" height="1024"></canvas>
+   </div>
     <div class="mapbar">
       <span class="lbl">底图透明度</span><input id="mop" type="range" min="0" max="100" value="55" style="width:120px">
       <span id="moppct">55%</span>
@@ -227,11 +244,12 @@ code{background:#21262d;padding:1px 4px;border-radius:3px;font-size:11px}
   </div>
 
   <div id="avatars"></div>
+</div><!-- /.left -->
 
 <div class="right panel">
   <div id="paneList">
     <div class="kv" id="selinfo"><b>明细表</b>（默认：双方 10 英雄 KDA + 正反补）</div>
-    <div style="max-height:62vh;overflow:auto">
+    <div style="overflow:visible">
     <table id="tbl"><thead><tr>
       <th>英雄</th><th>队</th><th>K</th><th>D</th><th>A</th><th>正补</th><th>反补</th>
       <th>净值@t</th><th>累计金币@t</th><th>经验@t</th><th>HP</th>
@@ -384,11 +402,20 @@ function fmtPct(v) { return (v === null || v === undefined) ? "—" : (100 * v).
 
 
 /* ═══════════════ 地图坐标（沿用 Q5B 官方标定） ═══════════════ */
-const CSX = 1024;
+/* CSX = 画布的"逻辑边长"，也是绘制坐标系（w2p 输出 0..CSX）。地图改成按剩余屏幕高度定尺寸后，
+   CSX 必须跟着画布 CSS 尺寸走（否则缩小后字/线会等比缩得看不清）。fitCanvas() 负责同步。 */
+let CSX = 1024;
 const CALIB_K = 0.049038, CALIB_OFFX = 508.3019, CALIB_REF_Y = 504.5433;
+const CALIB_REF = 1024;                    // 官方标定式是对着 1024×1024 底图推的
 const FULL = [-8600, 8600, -8600, 8600];
 let viewRect = null;
-function w2p(x, y) { return [CALIB_OFFX + CALIB_K * x, CALIB_REF_Y - CALIB_K * y]; }
+/* 画布边长改成随屏幕高度变化后，标定式的输出必须按 CSX/1024 缩放（否则全图态下标记会跑到画布外）。
+   字/线的绝对尺寸因此保持屏幕像素不变（缩小地图不会把字也缩小）。 */
+function mapScale() { return CSX / CALIB_REF; }
+function w2p(x, y) {
+  const s = mapScale();
+  return [(CALIB_OFFX + CALIB_K * x) * s, (CALIB_REF_Y - CALIB_K * y) * s];
+}
 function w2pView(x, y) {
   if (!viewRect) return w2p(x, y);
   const v = viewRect;
@@ -396,7 +423,10 @@ function w2pView(x, y) {
   return [fx * CSX, (1 - fy) * CSX];
 }
 function calibFromPx(px, py) {
-  if (!viewRect) return [(px - CALIB_OFFX) / CALIB_K, (CALIB_REF_Y - py) / CALIB_K];
+  if (!viewRect) {
+    const s = mapScale();
+    return [(px / s - CALIB_OFFX) / CALIB_K, (CALIB_REF_Y - py / s) / CALIB_K];
+  }
   const v = viewRect;
   return [v[0] + (px / CSX) * (v[1] - v[0]), v[2] + (1 - py / CSX) * (v[3] - v[2])];
 }
@@ -701,6 +731,28 @@ function draw() {
   try { render(); } finally { _drawing = false; if (_pending) { _pending = false; } }
 }
 
+/* ═══════════════ 一屏适配：地图按剩余高度/宽度取正方形边长 ═══════════════
+   目标：地图 + 头像 + 时间轴 + 右栏 combat log 同屏可见（页面本身不纵向滚动）。
+   地图是唯一可伸缩的元素：取 min(左栏可用宽, 左栏可用高)，并把逻辑坐标系 CSX 跟着改，
+   这样字/线在屏幕上的绝对大小不随地图缩小而变小。 */
+const CV_MIN = 200;
+function fitCanvas() {
+  const box = document.getElementById("mapbox");
+  if (!box || !cv) return;
+  const bw = box.clientWidth || 0, bh = box.clientHeight || 0;
+  let s = Math.floor(Math.min(bw || (bh || 900), bh || (bw || 900)));
+  if (!isFinite(s) || s <= 0) s = 512;
+  s = Math.max(CV_MIN, s);
+  if (s !== CSX || cv.width !== s || cv.height !== s) {
+    CSX = s;
+    cv.width = s; cv.height = s;
+    cv.style.width = s + "px"; cv.style.height = s + "px";
+    draw();
+    return true;
+  }
+  return false;
+}
+
 /* ═══════════════ 地图交互 ═══════════════ */
 function evPx(e) {
   const r = cv.getBoundingClientRect();
@@ -759,12 +811,15 @@ function resetZoom() { viewRect = null; draw(); }
 function buildAvatars() {
   const box = document.getElementById("avatars");
   box.innerHTML = "";
-  [[2, "天辉"], [3, "夜魇"]].forEach(function (tv) {
-    const row = document.createElement("div"); row.className = "arow";
-    const lb = document.createElement("div"); lb.className = "tl"; lb.textContent = tv[1]; row.appendChild(lb);
-    const box2 = document.createElement("div"); box2.style.display = "flex"; box2.style.gap = "6px";
+  /* owner：头像条放在地图下方；为了"四块同屏"，10 个头像排成一行（天辉 5 ｜ 夜魇 5，中间一条分隔线），
+     比原来两行省 ~57px 高度，正好还给地图。窄屏会自动换行。 */
+  const row = document.createElement("div"); row.className = "arow";
+  const team = function (tv, label) {
+    const lb = document.createElement("div"); lb.className = "tl " + (tv === 2 ? "dr" : "dd");
+    lb.textContent = label; row.appendChild(lb);
+    const wrap = document.createElement("div"); wrap.className = "tblk";
     PL.forEach(function (p, i) {
-      if (p.team !== tv[0]) return;
+      if (p.team !== tv) return;
       const d = document.createElement("div");
       d.className = "hero " + (p.team === 2 ? "t2" : "t3");
       d.setAttribute("data-i", i); d.title = p.short.replace(/_/g, " ") + "（" + p.name + "）";
@@ -775,10 +830,14 @@ function buildAvatars() {
       d.onclick = function () { selectHero(i); };
       d.onmouseenter = function () { hoverRow(i); };
       d.onmouseleave = function () { hoverRow(-1); };
-      box2.appendChild(d);
+      wrap.appendChild(d);
     });
-    row.appendChild(box2); box.appendChild(row);
-  });
+    row.appendChild(wrap);
+  };
+  team(2, "天辉");
+  const dv = document.createElement("div"); dv.className = "tdiv"; row.appendChild(dv);
+  team(3, "夜魇");
+  box.appendChild(row);
 }
 function hoverRow(i) {
   Array.prototype.forEach.call(document.querySelectorAll("#tbl tbody tr"), function (tr) {
@@ -1185,10 +1244,13 @@ function buildTimelineEvents() {
   const onlyBld = document.getElementById("tlBld").checked;
   const W = Math.max(320, up.clientWidth || 900);
   const span = Math.max(1, T1 - T0);
-  const ROWH = showTime ? 48 : 31;      // 每层高度（带时间戳时更高）
-  const NROW = 4;                       // 每个事件最多 4 层错开（3 层在团战/换家时图标会压在一起）
-  const MH = showTime ? 42 : 30;        // 标记自身高度（图标 26 + 内边距/边框 4 + 可选时间戳 12）
-  const SP = showTime ? 46 : 29;        // 同层最小水平间距（像素）
+  /* 层数按屏幕高度自适应：小屏少留几条泳道，保证"地图+头像+时间轴+右栏"同屏。
+     ≥1000px 视口 → 4 层（团战也不挤）；780~1000 → 3 层；更矮 → 2 层。 */
+  const VH = (typeof window !== "undefined" && window.innerHeight) ? window.innerHeight : 900;
+  const ROWH = showTime ? 48 : 31;                                    // 每层高度（带时间戳时更高）
+  const MH = showTime ? 42 : 30;                                      // 标记自身高度（图标 26 + 边框内边距 4 + 时间戳 12）
+  const SP = showTime ? 46 : 29;                                      // 同层最小水平间距
+  const NROW = showTime ? 3 : (VH >= 1000 ? 4 : (VH >= 780 ? 3 : 2)); // 每个事件最多几层错开
   up.style.height = dn.style.height = (4 + (NROW - 1) * ROWH + MH) + "px";
   const mk = function (host, e, side, rows) {
     const bld = e[2] !== 0, own = e[5] || 0;
@@ -1238,6 +1300,7 @@ function buildTimelineEvents() {
     if (e[1] === 2) { mk(up, e, 2, ru); } else { mk(dn, e, 3, rd); }
   });
   markNear();
+  fitCanvas();          // 时间轴高度变了 → 地图可用高度跟着变，重新取正方形边长
 }
 function jumpTo(t) {
   playing = false;
@@ -1250,7 +1313,7 @@ function markNear() {
     evEls[i].el.classList.toggle("near", d <= 25);
   }
 }
-window.addEventListener("resize", function () { buildTimelineEvents(); });
+window.addEventListener("resize", function () { buildTimelineEvents(); fitCanvas(); });
 
 /* ═══════════════ 播放 ═══════════════ */
 function tick(ts) {
@@ -1310,8 +1373,10 @@ document.getElementById("showName").onchange = draw;
     document.getElementById("liteNote").style.display = "";
     document.getElementById("liteStep").textContent = String(STEP);
   }
-  buildAvatars(); buildTable(); buildTimelineEvents();
+  buildAvatars(); buildTable(); buildTimelineEvents(); fitCanvas();
   commit(0);          // 默认停在 0:00（号角）；往前拖 = 出门期（-1:30 起）
+  /* 首帧之后再量一次：字体/图片加载完，左栏可用高度会变（避免地图第一次就取错尺寸） */
+  requestAnimationFrame(function () { fitCanvas(); });
 })();
 </script>
 </body></html>
