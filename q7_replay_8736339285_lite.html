@@ -740,7 +740,10 @@ function fitCanvas() {
   const box = document.getElementById("mapbox");
   if (!box || !cv) return;
   const bw = box.clientWidth || 0, bh = box.clientHeight || 0;
-  let s = Math.floor(Math.min(bw || (bh || 900), bh || (bw || 900)));
+  /* 窄屏（≤1180px）走"单栏 + 整页滚动"那套 CSS：地图按栏宽铺满，1:1 仍然成立 */
+  const narrow = (typeof window !== "undefined" && window.innerWidth) ? window.innerWidth <= 1180 : false;
+  let s = narrow ? Math.floor(bw || 512)
+                 : Math.floor(Math.min(bw || (bh || 900), bh || (bw || 900)));
   if (!isFinite(s) || s <= 0) s = 512;
   s = Math.max(CV_MIN, s);
   if (s !== CSX || cv.width !== s || cv.height !== s) {
