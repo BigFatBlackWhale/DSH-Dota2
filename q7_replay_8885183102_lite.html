@@ -280,7 +280,7 @@ code{background:#21262d;padding:1px 4px;border-radius:3px;font-size:11px}
       逐秒数据抽稀到每 <b id="liteStep">3</b> 秒一格、<b>不含 ±45s combat log 明细与技能图标</b>；
       地图/表格/胜率/眼位/烟雾/技能 CD 三态都保留。完整版见同目录 <code>q7_replay_&lt;match&gt;.html</code>。</div>
     <div class="tip"><b>点任意英雄</b>（表格行 / 头像 / 地图上的标记）→ 本栏切到该英雄的
-      <b>±45s combat log</b>（4 个 toggle，每行带技能/对方英雄图标）+ <b>技能 CD</b>。</div>
+      <b>±45s combat log</b>（4 个类别开关 + <b>隐藏小兵/中立/召唤</b>，每行带技能/对方英雄图标）+ <b>技能 CD</b>。</div>
   </div>
 
   <div id="paneHero" style="display:none">
@@ -293,6 +293,7 @@ code{background:#21262d;padding:1px 4px;border-radius:3px;font-size:11px}
       <label class="toggle"><input type="checkbox" id="tc2" checked onchange="renderDetail()">造成伤害</label>
       <label class="toggle"><input type="checkbox" id="tc3" checked onchange="renderDetail()">收到伤害</label>
       <label class="toggle"><input type="checkbox" id="tfold" checked onchange="renderDetail()">折叠连续同项</label>
+      <label class="toggle" title="隐藏"对象/来源"是**非英雄、非建筑**的行（小兵 / 中立 / 召唤物 / 肉山）；英雄与塔·兵营·基地仍然保留"><input type="checkbox" id="tnc" onchange="renderDetail()">隐藏小兵/中立/召唤</label>
       <label class="toggle"><input type="checkbox" id="tcdall" onchange="renderCD()">显示天赋/空槽</label>
     </div>
     <div class="dsum" id="dsum">—</div>
@@ -915,6 +916,20 @@ function diTag(idx, cls) {
   return k ? '<i class="di ' + (cls ? cls + " " : "") + k + '"></i>' : "";
 }
 function foldKey(r) { return r[1] + "|" + r[2] + "|" + r[3]; }
+/* 「小怪」判定（owner 2026 加的开关）：**不是英雄、也不是建筑**的对象/来源都算小怪 ——
+   小兵（creep_*）、中立与肉山（neutral_* / miniboss* / roshan）、英雄的召唤物与分身
+   （lone_druid_bear1 / unit_undying_zombie_torso / invoker_forged_spirit / thinker …）。
+   英雄（10 位）与建筑（塔/兵营/基地/泉水）**保留**；没有对手方的行（other=-1，如自身 modifier）也保留。
+   判定只看名字，不做任何"猜测性归类"；开关默认**关**（默认行为与以前完全一致）。 */
+const HERO_SHORTS = {};
+PL.forEach(function (q) { HERO_SHORTS[q.short] = 1; });
+function isBldName(nm) { return /(^|_)(tower|rax|barracks|fort|fountain)/.test(nm); }
+function isCritter(nm) {
+  if (!nm) return false;
+  if (HERO_SHORTS[nm]) return false;
+  if (isBldName(nm)) return false;
+  return true;
+}
 function renderDetail(force) {
   if (selIdx < 0) return;
   const p = PL[selIdx];
@@ -922,9 +937,10 @@ function renderDetail(force) {
   const lo = tCur - DET_WIN, hi = tCur + DET_WIN;
   const on = [0, 1, 2, 3].map(function (c) { return document.getElementById("tc" + c).checked; });
   const fold = document.getElementById("tfold").checked;
+  const hideCrit = document.getElementById("tnc").checked;   // 隐藏小兵/中立/召唤
   /* ±45s 的窗口比原来大 8 倍（几百行、每行带图标）→ **播放时按 130ms 节流重建**，
      并保证补一次（窗口一定追上播放头）；拖动滑块/显式调用（force）都立即重建，手感不打折。 */
-  const key = [selIdx, Math.round(lo), Math.round(hi), on.join(""), fold].join("|");
+  const key = [selIdx, Math.round(lo), Math.round(hi), on.join(""), fold, hideCrit ? 1 : 0].join("|");
   if (!force && playing) {
     if (key === _detKey) return;
     if (Date.now() - _detAt < 130) {
@@ -939,10 +955,13 @@ function renderDetail(force) {
   let a = 0, b = abs.length;
   while (a < b) { const m = (a + b) >> 1; if (abs[m] < lo) a = m + 1; else b = m; }
   const picked = [];
+  let crit = 0;
   for (let k = a; k < abs.length && abs[k] <= hi; k++) {
     const r = rows[k];
     const cat = r[1] >> 2, kind = r[1] & 3;
     if (!on[cat]) continue;
+    const other = (r[3] >= 0) ? (DNAMES[r[3]] || "") : "";
+    if (hideCrit && isCritter(other)) { crit += 1; continue; }
     picked.push({ t: abs[k], cat: cat, kind: kind, nm: DNAMES[r[2]] || "?", nid: r[2], oid: r[3],
                   val: r[4] || 0 });
   }
@@ -961,6 +980,7 @@ function renderDetail(force) {
   const cnt = [0, 0, 0, 0];
   picked.forEach(function (r) { cnt[r.cat]++; });
   lastDetail = { lo: lo, hi: hi, t: tCur, n: picked.length, shown: seq.length, cnt: cnt,
+                 crit: crit, hideCrit: hideCrit,
                  tMin: picked.length ? picked[0].t : null,
                  tMax: picked.length ? picked[picked.length - 1].t : null };
   document.getElementById("dsum").innerHTML =
@@ -968,6 +988,7 @@ function renderDetail(force) {
     + " ｜ 窗口 <b>" + fmt(tCur, true) + " ± " + DET_WIN + "s</b>（" + fmt(lo) + " → " + fmt(hi) + "）"
     + " ｜ 命中 <b>" + picked.length + "</b> 条"
     + (fold && seq.length !== picked.length ? "（折叠后 " + seq.length + " 行）" : "")
+    + (hideCrit ? " ｜ 已隐藏小兵/中立/召唤 <b>" + crit + "</b> 条" : "")
     + "<br>四类条数：" + CATNAME.map(function (c, i) { return c + " <b>" + cnt[i] + "</b>"; }).join(" ｜ ");
   const tb = document.querySelector("#dtbl tbody");
   const selfK = SELFICONS[p.npc] || "";
@@ -977,7 +998,8 @@ function renderDetail(force) {
         + "看明细请构建完整版：<code>python analysis/q7_replay.py " + DATA.mid
         + "</code> → <code>python analysis/build_q7_html.py " + DATA.mid + "</code>"
       : (!rows.length ? "该英雄没有明细数据（数据缺失）"
-                      : "该窗口内没有命中（可能该英雄此时不在场/无事件，或 4 个 toggle 都被关掉了）")) : "";
+                      : (hideCrit ? "该窗口内没有命中（4 类 toggle 或『隐藏小兵/中立/召唤』把它们都过滤掉了）"
+                                  : "该窗口内没有命中（可能该英雄此时不在场/无事件，或 4 个 toggle 都被关掉了）"))) : "";
   /* ★ 虚拟滚动：±45s 的窗口在团战期可能上千行（本场实测最多 1785 行），
      一次性塞进 DOM 会卡（每行还带 3 个图标）。这里只画视口附近的 ~160 行，
      上下用等高占位行撑出滚动条；行高固定 24px（CSS 里写死，见 #dtbl tbody tr）。 */
