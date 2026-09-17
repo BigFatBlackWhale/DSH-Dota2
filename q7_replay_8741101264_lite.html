@@ -29,7 +29,8 @@ h1{font-size:15px;margin:0;flex:0 0 auto}
 /* ---------- 主体：左＝地图+头像，右＝明细/combat log，各占一半宽 ---------- */
 .wrap{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px;align-items:stretch;
       flex:1 1 auto;min-height:0}
-.left{min-width:0;min-height:0;display:flex;flex-direction:column;gap:6px}
+/* 左栏：地图在左、10 个头像条竖排在地图**右侧**（owner 方案①）—— 头像不再吃掉地图的高度 */
+.left{min-width:0;min-height:0;display:flex;flex-direction:row;gap:6px;align-items:stretch}
 .right{min-width:0;min-height:0;overflow:auto;overscroll-behavior:contain}
 @media(max-width:1180px){
   body{height:auto;overflow:auto;display:block}
@@ -40,7 +41,7 @@ h1{font-size:15px;margin:0;flex:0 0 auto}
   #timeline{margin-bottom:10px}
 }
 #mapwrap{position:relative;background:var(--pnl);border:1px solid var(--bd);border-radius:8px;padding:6px;
-         flex:1 1 auto;min-height:0;display:flex;flex-direction:column}
+         flex:1 1 auto;min-width:0;min-height:0;display:flex;flex-direction:column}
 #mapbox{flex:1 1 auto;min-height:200px;display:flex;align-items:center;justify-content:center}
 #cv{border:1px solid var(--bd);border-radius:6px;background:#0d1117;display:block;width:512px;height:512px;
     cursor:grab;touch-action:none}
@@ -50,12 +51,12 @@ h1{font-size:15px;margin:0;flex:0 0 auto}
 .btn:hover{border-color:#4d5866}
 .btn.active{background:var(--acc);border-color:var(--acc);color:#fff}
 .btn.big{font-size:14px;padding:7px 16px;border-radius:16px}
-/* ---------- 头像（地图下方一行 10 个：天辉 5 ｜ 夜魇 5） ---------- */
-#avatars{display:flex;flex-direction:column;gap:5px;margin-top:0;flex:0 0 auto}
+/* ---------- 头像：竖排在地图右侧（天辉一列 ｜ 夜魇一列）---------- */
+#avatars{display:flex;flex-direction:row;gap:4px;align-items:center;flex:0 0 auto;min-height:0}
 .arow{display:flex;gap:5px;align-items:center;flex-wrap:wrap}
-.arow .tl{width:30px;font-size:11px;text-align:right;flex:0 0 auto}
-.arow .tblk{display:flex;gap:5px}
-.arow .tdiv{width:1px;height:36px;background:#30363d;margin:0 3px;flex:0 0 auto}
+.tcol{display:flex;flex-direction:column;gap:4px;align-items:center}
+.tcap{font-size:10px;line-height:12px;flex:0 0 auto}
+.tdiv{width:1px;align-self:stretch;min-height:40px;background:#30363d;margin:0 2px;flex:0 0 auto}
 .hero{position:relative;width:48px;height:48px;border-radius:8px;overflow:hidden;border:2px solid #333;
       cursor:pointer;background:#222;flex:0 0 auto}
 .hero img{width:100%;height:100%;object-fit:cover;display:block}
@@ -65,6 +66,9 @@ h1{font-size:15px;margin:0;flex:0 0 auto}
 .hero.dead{filter:grayscale(1) brightness(.5)}
 .hero.t2{border-color:var(--rad)}.hero.t3{border-color:var(--dire)}
 .hero .hpbar{position:absolute;left:0;top:0;height:3px;background:#3fb950}
+/* 矮屏：头像缩一档，保证 5 个一列仍然塞得进左栏高度 */
+@media(max-height:860px){.hero{width:40px;height:40px}.hero .nm{font-size:8px}}
+@media(max-height:700px){.hero{width:34px;height:34px}.hero .nm{font-size:7px}}
 /* ---------- 时间轴 ---------- */
 #timeline{margin-top:0}
 .tlrow{display:flex;gap:8px;align-items:center;margin:0;flex-wrap:wrap}
@@ -814,13 +818,13 @@ function resetZoom() { viewRect = null; draw(); }
 function buildAvatars() {
   const box = document.getElementById("avatars");
   box.innerHTML = "";
-  /* owner：头像条放在地图下方；为了"四块同屏"，10 个头像排成一行（天辉 5 ｜ 夜魇 5，中间一条分隔线），
-     比原来两行省 ~57px 高度，正好还给地图。窄屏会自动换行。 */
-  const row = document.createElement("div"); row.className = "arow";
+  /* owner 方案①：10 个头像竖排在地图右侧（天辉一列 ｜ 夜魇一列），把地图下方的整块高度还给地图。
+     窄屏（≤1180px 单栏）时自动折行，仍然可用。 */
   const team = function (tv, label) {
-    const lb = document.createElement("div"); lb.className = "tl " + (tv === 2 ? "dr" : "dd");
-    lb.textContent = label; row.appendChild(lb);
-    const wrap = document.createElement("div"); wrap.className = "tblk";
+    const col = document.createElement("div"); col.className = "tcol";
+    const cap = document.createElement("div");
+    cap.className = "tcap " + (tv === 2 ? "dr" : "dd"); cap.textContent = label;
+    col.appendChild(cap);
     PL.forEach(function (p, i) {
       if (p.team !== tv) return;
       const d = document.createElement("div");
@@ -833,14 +837,15 @@ function buildAvatars() {
       d.onclick = function () { selectHero(i); };
       d.onmouseenter = function () { hoverRow(i); };
       d.onmouseleave = function () { hoverRow(-1); };
-      wrap.appendChild(d);
+      col.appendChild(d);
     });
-    row.appendChild(wrap);
+    box.appendChild(col);
+    return col;
   };
   team(2, "天辉");
-  const dv = document.createElement("div"); dv.className = "tdiv"; row.appendChild(dv);
+  const dv = document.createElement("div"); dv.className = "tdiv"; box.appendChild(dv);
   team(3, "夜魇");
-  box.appendChild(row);
+  if (typeof fitCanvas === "function") fitCanvas();
 }
 function hoverRow(i) {
   Array.prototype.forEach.call(document.querySelectorAll("#tbl tbody tr"), function (tr) {
