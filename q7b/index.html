@@ -1,0 +1,202 @@
+<!doctype html><html lang="zh"><head><meta charset="utf-8">
+<title>私人录像索引（Q7B）</title>
+<style>
+body{font-family:-apple-system,"Segoe UI",Roboto,"Microsoft YaHei",sans-serif;background:#0d1117;color:#e6edf3;margin:0;padding:16px 20px 60px}
+h1{font-size:18px;margin:0 0 6px}
+.sub{color:#8b949e;font-size:12px;line-height:1.75;margin-bottom:10px}
+.sub b{color:#79c0ff}.sub code{background:#21262d;padding:1px 4px;border-radius:3px}
+.warn{background:#3a2d12;border:1px solid #d29922;color:#f0dda6;border-radius:8px;padding:7px 10px;font-size:12px;margin-bottom:10px}
+.bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;background:#161b22;border:1px solid #30363d;
+     border-radius:8px;padding:8px 10px;margin-bottom:8px;font-size:12px;position:sticky;top:0;z-index:5}
+input[type=text],select{background:#0d1117;color:#e6edf3;border:1px solid #30363d;border-radius:4px;padding:4px 6px;font-size:12px}
+input[type=text]{width:210px}
+label{display:inline-flex;align-items:center;gap:4px;color:#8b949e}
+.btn{background:#21262d;border:1px solid #30363d;border-radius:12px;padding:4px 10px;cursor:pointer;font-size:12px;color:#e6edf3}
+.btn:hover{border-color:#4d5866}
+table{border-collapse:collapse;font-size:12px;width:100%}
+th,td{padding:3px 6px;border-bottom:1px solid #21262d;text-align:left;white-space:nowrap}
+th{background:#21262d;position:sticky;top:52px;cursor:pointer}
+th:hover{color:#79c0ff}
+td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
+tr:hover{background:#1f6feb22}
+tr.unreg{opacity:.62}
+a{color:#58a6ff;text-decoration:none}a:hover{text-decoration:underline}
+.dr{color:#4aa564}.dd{color:#d24b4b}
+.mut{color:#8b949e}
+.tag{display:inline-block;padding:0 5px;border-radius:8px;font-size:10px;line-height:15px;background:#21262d;color:#8b949e}
+.tag.full{background:#1f6feb;color:#fff}.tag.lite{background:#2d4f6b;color:#cfe6ff}
+.tag.warn{background:#5c4a1f;color:#f0dda6}
+#cmdwrap{display:none;background:#161b22;border:1px solid #30363d;border-radius:8px;padding:8px 10px;margin:8px 0;font-size:12px}
+.chip2{display:inline-block;padding:1px 6px;margin:1px 3px 1px 0;border-radius:9px;font-size:11px;
+       background:#21262d;color:#cfe6ff;text-decoration:none}
+.chip2:hover{background:#1f6feb;color:#fff}
+#cmd{width:100%;height:76px;background:#0d1117;color:#7ee787;border:1px solid #30363d;border-radius:4px;font-family:ui-monospace,Consolas,monospace;font-size:11px}
+</style></head><body>
+<h1>私人录像索引 —— 本地录像 <span id="nn">1</span> 场<span id="nun"></span></h1>
+<div class="warn"><b>这一页会列出玩家名</b>（个人数据）。链接是发给朋友的，<b>别往公开场合贴</b>。
+联赛场次的回放索引在这里：<a href="https://bigfatblackwhale.github.io/DSH-Dota2/q7_index.html" target="_blank">q7_index.html</a>。</div>
+<div class="sub">
+  <b>只想看比赛</b>：直接点下面"已生成页面"里的芯片，或表格里"打开"。
+  <br><b>加新录像（自己的机器上）</b>：把 <code>&lt;match_id&gt;.dem</code> 放进
+  <code>dems/local/&lt;scope&gt;/</code>（scope 是分组名，如 scrim / team_ts / 2026q1），然后
+  <code>python scheduler/intake_local.py --scope &lt;名&gt;</code> 录入解析，最后
+  <code>python analysis/build_q7b_index.py --rescan --publish</code> 刷新并发布本页。
+  <br>「时长 / 结果」由<b>录像本身</b>推出：号角 → 远古被摧毁，被摧毁的是哪一方的远古就判哪一方输
+  （本地场次没有外部战绩可比对，所以这里不写"已核对"）。
+  已生成：<span class="tag full">完整 1</span>
+  <span class="tag lite">lite 1</span>。索引生成于 2026-09-17 22:30。
+  <br>想发给朋友：把表格里"打开"的链接发过去就行（单文件页面，点开即看）。
+</div>
+<div class="bar" style="background:#1c2333;border-color:#1f6feb">
+  <label><b style="color:#79c0ff">已生成页面</b></label><span id="chips"></span>
+</div>
+<div class="bar">
+  <label>搜索 <input type="text" id="q" placeholder="match_id / 英雄 / 玩家 / 备注 / scope" oninput="render()"></label>
+  <label>scope <select id="sc" onchange="render()"></select></label>
+  <label>结果 <select id="w" onchange="render()">
+    <option value="-1">全部</option><option value="1">天辉胜</option><option value="0">夜魇胜</option></select></label>
+  <label><input type="checkbox" id="onlyB" onchange="render()"> 只看已生成页面</label>
+  <label><input type="checkbox" id="onlyR" checked onchange="render()"> 只看已录入（解析完成）</label>
+  <button class="btn" onclick="clearSel()">清空选择</button>
+  <button class="btn" onclick="genCmd()">生成命令</button>
+  <span id="stat" class="mut"></span>
+</div>
+<div id="cmdwrap"><div style="margin-bottom:4px;color:#8b949e">把下面命令粘到项目根目录执行：</div>
+<textarea id="cmd" readonly></textarea></div>
+<div style="max-height:72vh;overflow:auto">
+<table id="t"><thead><tr>
+  <th style="width:26px"><input type="checkbox" id="all" onchange="toggleAll()"></th>
+  <th data-k="mid" class="n">match_id</th><th data-k="scope">scope</th>
+  <th data-k="dur" class="n">时长</th><th data-k="rwin">结果</th>
+  <th data-k="kills" class="n">击杀</th>
+  <th>天辉英雄</th><th>夜魇英雄</th>
+  <th data-k="dem_mb" class="n">录像</th><th data-k="db_mb" class="n">库</th>
+  <th data-k="at">录入</th><th>备注</th><th data-k="built">打开</th>
+</tr></thead><tbody id="tb"></tbody></table>
+</div>
+<script>
+"use strict";
+const ROWS = [{"mid":"9001661796","scope":"scrim","state":"parsed","dur":2117,"rwin":0,"hr":["mars","broodmother","dark_willow","huskar","enchantress"],"hd":["juggernaut","storm_spirit","jakiro","primal_beast","rubick"],"players":[{"h":"mars","t":2,"n":"区"},{"h":"broodmother","t":2,"n":"斩！（强梁既出）"},{"h":"dark_willow","t":2,"n":"DB"},{"h":"huskar","t":2,"n":"天意"},{"h":"enchantress","t":2,"n":"齐民要树"},{"h":"juggernaut","t":3,"n":"让我躺到起不来吧"},{"h":"storm_spirit","t":3,"n":"白白"},{"h":"jakiro","t":3,"n":"小猫benben"},{"h":"primal_beast","t":3,"n":"6n"},{"h":"rubick","t":3,"n":"Agni"}],"kills":3600,"err":null,"dem_mb":86.1,"db_mb":76.3,"dem":"dems/local/scrim/9001661796.dem","db":"dems/db_full/local/scrim/9001661796.db","at":"2026-09-18 01:58:51","note":"练习房（lobby_type=1）","sha":"595d77dd8b","id_src":"header","full":1,"lite":1,"registered":true}];
+let sortK = "at", sortDir = -1;
+const sel = new Set();
+function builtRows() { return ROWS.filter(r => r.full || r.lite); }
+function renderChips() {
+  const box = document.getElementById("chips");
+  const list = builtRows().sort((a, b) => (b.full - a.full) || String(a.mid).localeCompare(String(b.mid)));
+  box.innerHTML = list.length ? list.map(r => {
+    const href = "q7_replay_" + r.mid + (r.full ? "" : "_lite") + ".html";
+    const tag = r.full ? "完整" : "lite";
+    return '<a href="' + href + '" target="_blank" class="chip2" title="' + (r.scope || "") + ' ｜ ' + tag
+      + ' ｜ ' + fmtDur(r.dur) + ' ｜ ' + winTxt(r) + '">' + r.mid + " · " + tag + "</a>";
+  }).join(" ") : '<span class="mut">还没有生成过页面（下面表格里点"命令"）</span>';
+}
+function fmtDur(s) { if (s === null || s === undefined) return "—"; s = Math.round(s); return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0"); }
+function winTxt(r) {
+  if (r.rwin === null || r.rwin === undefined) return '<span class="mut">—</span>';
+  return r.rwin ? '<span class="dr">天辉胜</span>' : '<span class="dd">夜魇胜</span>';
+}
+function initSel() {
+  const scs = [...new Set(ROWS.map(r => r.scope))].sort();
+  document.getElementById("sc").innerHTML = '<option value="">全部</option>'
+    + scs.map(v => '<option value="' + v + '">' + v + '</option>').join("");
+}
+function filtered() {
+  const q = document.getElementById("q").value.trim().toLowerCase();
+  const sc = document.getElementById("sc").value;
+  const w = +document.getElementById("w").value;
+  const onlyB = document.getElementById("onlyB").checked;
+  const onlyR = document.getElementById("onlyR").checked;
+  return ROWS.filter(r => {
+    if (sc && r.scope !== sc) return false;
+    if (w >= 0 && r.rwin !== w) return false;
+    if (onlyB && !(r.full || r.lite)) return false;
+    if (onlyR && !r.registered) return false;
+    if (q) {
+      const hay = [r.mid, r.scope, r.note, r.state, (r.hr || []).join(" "), (r.hd || []).join(" "),
+                   (r.players || []).map(p => p.h + " " + (p.n || "")).join(" ")].join(" ").toLowerCase();
+      if (hay.indexOf(q) < 0) return false;
+    }
+    return true;
+  });
+}
+function sortRows(a) {
+  const k = sortK;
+  a.sort((x, y) => {
+    let p = x[k], q2 = y[k];
+    if (k === "built") { p = (x.full || 0) * 2 + (x.lite || 0); q2 = (y.full || 0) * 2 + (y.lite || 0); }
+    if (p === null || p === undefined || p === "") p = -1;
+    if (q2 === null || q2 === undefined || q2 === "") q2 = -1;
+    if (typeof p === "string" || typeof q2 === "string") return sortDir * String(p).localeCompare(String(q2));
+    return sortDir * (p - q2);
+  });
+  return a;
+}
+function render() {
+  const a = sortRows(filtered());
+  const tb = document.getElementById("tb");
+  let html = "";
+  for (const r of a) {
+    const open = r.full ? '<a href="q7_replay_' + r.mid + '.html" target="_blank"><b>打开(完整)</b></a>'
+      : (r.lite ? '<a href="q7_replay_' + r.mid + '_lite.html" target="_blank"><b>打开(lite)</b></a>'
+                : '<button class="btn" style="padding:2px 8px" onclick="cmdFor(\'' + r.mid + '\')">命令</button>');
+    const tags = (r.full ? '<span class="tag full">完整</span> ' : "")
+      + (r.lite ? '<span class="tag lite">lite</span> ' : "")
+      + (!r.registered ? '<span class="tag warn">未录入</span>' : (r.state !== "parsed" ? '<span class="tag warn">' + r.state + "</span>" : ""));
+    const pl = (r.players || []).map(p => p.h + "(" + (p.n || "?") + ")").join(" ｜ ");
+    html += '<tr class="' + (r.registered ? "" : "unreg") + '">'
+      + '<td><input type="checkbox" data-mid="' + r.mid + '"' + (sel.has(r.mid) ? " checked" : "")
+      + ' onchange="toggleOne(this)"></td>'
+      + '<td class="n">' + r.mid + "</td>"
+      + '<td class="mut">' + (r.scope || "—") + "</td>"
+      + '<td class="n">' + fmtDur(r.dur) + "</td>"
+      + "<td>" + winTxt(r) + "</td>"
+      + '<td class="n">' + (r.kills || "—") + "</td>"
+      + '<td class="mut" title="' + pl + '">' + (r.hr || []).join(", ") + "</td>"
+      + '<td class="mut" title="' + pl + '">' + (r.hd || []).join(", ") + "</td>"
+      + '<td class="n mut">' + (r.dem_mb === null || r.dem_mb === undefined ? "—" : r.dem_mb + " MB") + "</td>"
+      + '<td class="n mut">' + (r.db_mb === null || r.db_mb === undefined ? "—" : r.db_mb + " MB") + "</td>"
+      + '<td class="mut">' + (r.at || "").slice(0, 16) + "</td>"
+      + '<td class="mut">' + esc(r.note || "") + (r.err ? ' <span class="dd">' + esc(r.err) + "</span>" : "") + "</td>"
+      + "<td>" + open + " " + tags + "</td></tr>";
+  }
+  tb.innerHTML = html || '<tr><td colspan="13" class="mut">没有匹配的场次</td></tr>';
+  const nb = a.filter(r => r.full || r.lite).length;
+  document.getElementById("stat").textContent = "筛选出 " + a.length + " 场（已生成页面 " + nb + "）";
+}
+function esc(s) { return String(s === undefined || s === null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
+function toggleOne(el) { const m = el.getAttribute("data-mid"); if (el.checked) sel.add(m); else sel.delete(m); }
+function toggleAll() {
+  const on = document.getElementById("all").checked;
+  document.querySelectorAll("#tb input[type=checkbox]").forEach(el => { el.checked = on; toggleOne(el); });
+}
+function clearSel() { sel.clear(); document.getElementById("all").checked = false; render(); }
+function oneCmd(r) {
+  return "# " + r.mid + "（scope=" + (r.scope || "?") + "）\n"
+    + (r.registered ? "" : "python scheduler/intake_local.py --scope " + (r.scope || "inbox") + "\n")
+    + "python analysis/q7_replay.py " + r.mid + "\n"
+    + "python analysis/build_q7_html.py " + r.mid + " --out analysis/output_review\n"
+    + "# lite（0.5MB，便于发人）\n"
+    + "python analysis/build_q7_html.py " + r.mid + " --lite --step 4 --out analysis/output_review";
+}
+function cmdFor(mid) {
+  const r = ROWS.find(x => String(x.mid) === String(mid));
+  if (!r) return;
+  const txt = (sel.size ? [...sel].map(m => oneCmd(ROWS.find(x => String(x.mid) === m))).join("\n\n")
+                        : oneCmd(r))
+    + "\n\n# 索引刷新\npython analysis/build_q7b_index.py";
+  document.getElementById("cmdwrap").style.display = "block";
+  document.getElementById("cmd").value = txt;
+  document.getElementById("cmd").select();
+}
+function genCmd() { cmdFor(sel.size ? [...sel][0] : (filtered()[0] || {}).mid); }
+document.querySelectorAll("th[data-k]").forEach(th => {
+  th.onclick = function () {
+    const k = th.getAttribute("data-k");
+    if (sortK === k) sortDir = -sortDir; else { sortK = k; sortDir = -1; }
+    render();
+  };
+});
+document.getElementById("nun").innerHTML = 0 ? '（另有 <b>0</b> 个录像文件还没录入 → 下面标"未录入"）' : "";
+initSel(); renderChips(); render();
+</script>
+</body></html>
