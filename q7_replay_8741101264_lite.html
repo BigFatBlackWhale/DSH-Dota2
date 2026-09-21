@@ -57,6 +57,26 @@ h1{font-size:15px;margin:0;flex:0 0 auto}
 .tcol{display:flex;flex-direction:column;gap:4px;align-items:center}
 .tcap{font-size:10px;line-height:12px;flex:0 0 auto}
 .tdiv{width:1px;align-self:stretch;min-height:40px;background:#30363d;margin:0 2px;flex:0 0 auto}
+
+.hrow{display:flex;align-items:center;gap:3px;flex:0 0 auto}
+.hrow.t3{flex-direction:row-reverse}
+
+.ultbar{width:5px;align-self:stretch;margin:7px 0;border-radius:3px;background:#30363d80;flex:0 0 auto}
+.hrow.ult-ready .ultbar{background:#e3b341}
+.hrow.ult-cool .ultbar{background:#6e7681}
+.hrow.ult-none .ultbar{background:#30363d80}
+
+.tpbadge{position:relative;width:20px;height:20px;border-radius:5px;background:#0d1117;
+         border:2px solid #0d1117;box-sizing:border-box;display:none;align-items:center;
+         justify-content:center;flex:0 0 auto}
+.tpbadge img{width:100%;height:100%;display:block;border-radius:3px}
+.tpcd{position:absolute;inset:0;display:none;align-items:center;justify-content:center;
+      border-radius:3px;background:#00000073;color:#fff;font-size:10px;font-weight:700;
+      text-shadow:0 0 3px #000,0 1px 2px #000;font-variant-numeric:tabular-nums}
+.hrow.tp-ok .tpbadge{display:flex}
+.hrow.tp-cd .tpbadge{display:flex;filter:grayscale(.7) brightness(.62)}
+.hrow.tp-cd .tpcd{display:flex}
+.hrow.tp-none .tpbadge{display:none}
 .hero{position:relative;width:56px;height:56px;border-radius:9px;overflow:hidden;border:2px solid #333;
       cursor:pointer;background:#222;flex:0 0 auto}
 .hero img{width:100%;height:100%;object-fit:cover;display:block}
@@ -68,36 +88,14 @@ h1{font-size:15px;margin:0;flex:0 0 auto}
 .hero.t2{border-color:var(--rad)}.hero.t3{border-color:var(--dire)}
 .hero .hpbar{position:absolute;left:0;top:0;height:3px;background:#3fb950}
 
-.hero .ultbar{position:absolute;top:5px;bottom:15px;width:5px;border-radius:3px;
-              background:#30363d80;pointer-events:none}
-.hero.t2 .ultbar{left:2px}
-.hero.t3 .ultbar{right:2px}
-.hero.ult-ready .ultbar{background:#e3b341}
-.hero.ult-cool .ultbar{background:#6e7681}
-.hero.ult-none .ultbar{background:#30363d80}
-
-.hero .tpbadge{position:absolute;top:3px;width:20px;height:20px;border-radius:5px;
-               background:#0d1117;border:2px solid #0d1117;box-sizing:border-box;
-               display:none;align-items:center;justify-content:center;box-shadow:0 1px 4px #000b}
-.hero.t2 .tpbadge{left:9px}
-.hero.t3 .tpbadge{right:9px}
-.hero .tpbadge img{width:100%;height:100%;display:block;border-radius:3px}
-.hero .tpcd{position:absolute;inset:0;display:none;align-items:center;justify-content:center;
-            border-radius:3px;background:#00000073;color:#fff;font-size:10px;font-weight:700;
-            text-shadow:0 0 3px #000,0 1px 2px #000;font-variant-numeric:tabular-nums}
-.hero.tp-ok .tpbadge{display:flex}
-.hero.tp-cd .tpbadge{display:flex;filter:grayscale(.7) brightness(.62)}
-.hero.tp-cd .tpcd{display:flex}
-.hero.tp-none .tpbadge{display:none}
-
 .fleg{font-size:11px;color:#8b949e;white-space:nowrap}
 .fleg b{display:inline-block;width:5px;height:12px;border-radius:2px;vertical-align:-2px;margin:0 3px}
 .fleg em{display:inline-block;width:12px;height:12px;border-radius:3px;vertical-align:-2px;margin:0 3px;
          border:1px solid #30363d}
 
-@media(max-height:860px){.hero{width:48px;height:48px;border-radius:8px}.hero .ultbar{top:4px;bottom:13px}
-  .hero.t2 .tpbadge{left:8px}.hero.t3 .tpbadge{right:8px}.hero .nm{font-size:8px}}
-@media(max-height:700px){.hero{width:40px;height:40px;border-radius:7px}.hero .ultbar{top:4px;bottom:12px;width:4px}.hero .nm{font-size:7px}}
+@media(max-height:860px){.hero{width:48px;height:48px;border-radius:8px}.hero .nm{font-size:8px}}
+@media(max-height:700px){.hero{width:40px;height:40px;border-radius:7px}.ultbar{width:4px}
+  .tpbadge{width:18px;height:18px}.hero .nm{font-size:7px}}
 
 #timeline{margin-top:0;position:relative}
 
@@ -900,20 +898,25 @@ function buildAvatars() {
     col.appendChild(cap);
     PL.forEach(function (p, i) {
       if (p.team !== tv) return;
+      
+      const row = document.createElement("div");
+      row.className = "hrow " + (p.team === 2 ? "t2" : "t3");
+      row.setAttribute("data-i", i);
+      const bar = document.createElement("div"); bar.className = "ultbar";
+      const badge = document.createElement("div"); badge.className = "tpbadge";
+      badge.innerHTML = (TPICON ? '<img src="' + TPICON + '" alt="TP">' : "") + '<b class="tpcd"></b>';
       const d = document.createElement("div");
       d.className = "hero " + (p.team === 2 ? "t2" : "t3");
       d.setAttribute("data-i", i); d.title = p.short.replace(/_/g, " ") + "（" + p.name + "）";
       const im = ICONS[p.short];
       d.innerHTML = (im ? '<img src="' + im + '" alt="">' : "") +
-        '<div class="ultbar"></div>' +
-        '<div class="tpbadge">' + (TPICON ? '<img src="' + TPICON + '" alt="TP">' : "")
-        + '<b class="tpcd"></b></div>' +
         '<div class="nm">' + p.short.replace(/_/g, " ") + '</div>' +
         '<div class="hpbar" style="width:0%"></div>';
       d.onclick = function () { selectHero(i); };
       d.onmouseenter = function () { hoverRow(i); };
       d.onmouseleave = function () { hoverRow(-1); };
-      col.appendChild(d);
+      row.appendChild(bar); row.appendChild(badge); row.appendChild(d);
+      col.appendChild(row);
     });
     box.appendChild(col);
     return col;
@@ -1159,8 +1162,11 @@ function applyHeroFrames(t) {
   for (let i = 0; i < PL.length; i++) {
     const p = PL[i];
     const el = document.querySelector('.hero[data-i="' + i + '"]');
-    if (!el) continue;
-    el.classList.remove("ult-ready", "ult-cool", "ult-none", "tp-ok", "tp-cd", "tp-none", "dead");
+    
+    const row = document.querySelector('.hrow[data-i="' + i + '"]') || el;
+    if (!el || !row) continue;
+    row.classList.remove("ult-ready", "ult-cool", "ult-none", "tp-ok", "tp-cd", "tp-none");
+    el.classList.remove("dead");
     const q = posAt(p.npc, t);
     const dead = !!(q && q.hp !== null && q.hp !== undefined && q.hp <= 0);
     if (!q || dead) el.classList.add("dead");
@@ -1168,21 +1174,21 @@ function applyHeroFrames(t) {
     let tip = p.short.replace(/_/g, " ") + "（" + p.name + "）";
     if (q) tip += " ｜ HP " + (q.hp > 0 ? (q.hp + " / " + (hpMaxAt(p.npc, t) || "?")) : "阵亡");
     else tip += " ｜ 未出场";
-    if (us.st === "ready") { el.classList.add("ult-ready"); tip += " ｜ 大招就绪"; }
+    if (us.st === "ready") { row.classList.add("ult-ready"); tip += " ｜ 大招就绪"; }
     else if (us.st === "cool") {
-      el.classList.add("ult-cool");
+      row.classList.add("ult-cool");
       tip += " ｜ 大招冷却 " + Math.ceil(us.left) + "s" + (us.name ? "（" + us.name + "）" : "");
-    } else { el.classList.add("ult-none"); tip += " ｜ 大招：这一时刻没有数据"; }
+    } else { row.classList.add("ult-none"); tip += " ｜ 大招：这一时刻没有数据"; }
     if (ts.st === "ok") {
-      el.classList.add("tp-ok");
+      row.classList.add("tp-ok");
       tip += " ｜ TP 可用" + (ts.last === null ? "（本场无使用记录）"
         : "（最近一次 " + Math.round(t - ts.last) + "s 前）");
     } else {
-      el.classList.add("tp-cd");
+      row.classList.add("tp-cd");
       tip += " ｜ TP 冷却中约 " + Math.ceil(ts.left) + "s（按 " + Math.round(TPCOOL) + " 秒共享冷却推算）";
     }
     
-    const cdEl = el.querySelector(".tpcd");
+    const cdEl = row.querySelector(".tpcd");
     if (cdEl) cdEl.textContent = (ts.st === "ok") ? "" : String(Math.max(1, Math.ceil(ts.left)));
     el.title = tip;
   }
